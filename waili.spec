@@ -1,5 +1,5 @@
 Summary:	WAILI - a wavelet transform library
-Summary(pl.UTF-8):   WAILI - biblioteka transformaty falkowej
+Summary(pl.UTF-8):	WAILI - biblioteka transformaty falkowej
 Name:		waili
 Version:	19990723
 Release:	1
@@ -31,7 +31,7 @@ obrazu.
 
 %package devel
 Summary:	Header files for WAILI library
-Summary(pl.UTF-8):   Pliki nagłówkowe biblioteki WAILI
+Summary(pl.UTF-8):	Pliki nagłówkowe biblioteki WAILI
 Group:		Development/Libraries
 Requires:	%{name} = %{version}-%{release}
 Requires:	libjpeg-devel
@@ -46,7 +46,7 @@ Pliki nagłówkowe biblioteki WAILI.
 
 %package static
 Summary:	Static WAILI library
-Summary(pl.UTF-8):   Statyczna biblioteka WAILI
+Summary(pl.UTF-8):	Statyczna biblioteka WAILI
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
 
