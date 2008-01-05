@@ -1,0 +1,61 @@
+--- Configure.orig	2008-01-05 13:47:48.136902017 +0100
++++ waili-gpl-19990723/config/Configure	2008-01-05 13:48:12.633164958 +0100
+@@ -72,7 +72,7 @@
+ #libtool support, if available
+ if which libtool >/dev/null ; then
+   echo 'LIBTOOL = libtool' >> ../Rules.config
+-  echo 'LIBTOOLCXX = libtool --mode=compile ' >> ../Rules.config
++  echo 'LIBTOOLCXX = libtool --tag=CXX --mode=compile ' >> ../Rules.config
+   echo 'LIBTOOLLD  = libtool --mode=link    ' >> ../Rules.config
+   echo 'LIBTOOLINSTALL = libtool --mode=install    ' >> ../Rules.config
+   LIBTOOL=libtool
+--- waili-gpl-19990723/test/Makefile.orig	2008-01-05 13:41:41.192881627 +0100
++++ waili-gpl-19990723/test/Makefile	2008-01-05 13:42:30.685331244 +0100
+@@ -28,22 +28,22 @@
+ All:		$(ALL)
+ 
+ Example:	Example.o $(DEPLIBS)
+-		$(LIBTOOLLD) $(CXX) -o Example Example.o $(LFLAGS)
++		$(LIBTOOLLD) --tag=CXX $(CXX) -o Example Example.o $(LFLAGS)
+ 
+ Demo:		Demo.o $(DEPLIBS)
+-		$(LIBTOOLLD) $(CXX) -lreadline -o Demo Demo.o $(LFLAGS)
++		$(LIBTOOLLD) --tag=CXX $(CXX) -lreadline -o Demo Demo.o $(LFLAGS)
+ 
+ Proof:		Proof.o $(DEPLIBS)
+-		$(LIBTOOLLD) $(CXX) -o Proof Proof.o $(LFLAGS)
++		$(LIBTOOLLD) --tag=CXX $(CXX) -o Proof Proof.o $(LFLAGS)
+ 
+ Test:		Test.o $(DEPLIBS)
+-		$(LIBTOOLLD) $(CXX) -o Test Test.o $(LFLAGS)
++		$(LIBTOOLLD) --tag=CXX $(CXX) -o Test Test.o $(LFLAGS)
+ 
+ Rangecheck:	Rangecheck.o $(DEPLIBS)
+-		$(LIBTOOLLD) $(CXX) -o Rangecheck Rangecheck.o $(LFLAGS)
++		$(LIBTOOLLD) --tag=CXX $(CXX) -o Rangecheck Rangecheck.o $(LFLAGS)
+ 
+ Histogram:	Histogram.o $(DEPLIBS)
+-		$(LIBTOOLLD) $(CXX) -o Histogram Histogram.o $(LFLAGS)
++		$(LIBTOOLLD) --tag=CXX $(CXX) -o Histogram Histogram.o $(LFLAGS)
+ 
+ 
+ depend: $(ALL:=.d)
+--- waili-gpl-19990723/lib/Makefile.orig	2008-01-05 13:38:13.724532227 +0100
++++ waili-gpl-19990723/lib/Makefile	2008-01-05 13:39:37.711719454 +0100
+@@ -37,14 +37,14 @@
+ All: $(LIB)  $(LIB:.la=.a)
+ 
+ $(LIB)  :	$(LIBOBJS:.o=.d) $(LIBOBJS:.o=.lo) $(LIBOBJS)
+-	$(LIBTOOL) --mode=link $(CXX) $(CFLAGS)  $(TIFFLIB) -o $(LIB) \
++	$(LIBTOOL) --mode=link --tag=CXX $(CXX) $(CFLAGS)  $(TIFFLIB) -o $(LIB) \
+ 		-rpath /usr/lib \
+ 		-version-info "$(LIBVERSION)" \
+ 		$(LIBOBJS:.o=.lo)
+ 
+ 
+ $(LIB:.la=.a) :	$(LIBOBJS:.o=.d) $(LIBOBJS:.o=.lo) $(LIBOBJS)
+-		$(LIBTOOL) --mode=link $(CXX) $(CFLAGS)  -o $(LIB:.la=.a) \
++		$(LIBTOOL) --mode=link --tag=CXX $(CXX) $(CFLAGS)  -o $(LIB:.la=.a) \
+ 		-version-info "$(LIBVERSION)" \
+ 		$(LIBOBJS)
+ 
