@@ -9,6 +9,8 @@ Group:		Libraries
 Source0:	http://www.cs.kuleuven.ac.be/~wavelets/%{name}-gpl-%{version}.tar.gz
 # Source0-md5:	0bdbb8f6e1e44a575a5aebd7bca7fdcd
 Patch0:		%{name}-debian.patch
+Patch1:		%{name}-libtool_tag_cxx.patch
+Patch2:		%{name}-gcc4.patch
 URL:		http://www.cs.kuleuven.ac.be/~wavelets/
 BuildRequires:	libjpeg-devel
 BuildRequires:	libstdc++-devel
@@ -59,6 +61,8 @@ Statyczna biblioteka WAILI.
 %prep
 %setup -q -n %{name}-gpl-%{version}
 %patch0 -p1
+%patch1 -p1
+%patch2 -p1
 
 mv -f debian/changelog debian/changelog.Debian
 
