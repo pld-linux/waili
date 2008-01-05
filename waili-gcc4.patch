@@ -1,0 +1,18 @@
+--- waili-gpl-19990723/test/Rangecheck.C.orig	2008-01-05 13:59:33.529289985 +0100
++++ waili-gpl-19990723/test/Rangecheck.C	2008-01-05 14:50:19.064674468 +0100
+@@ -213,9 +213,15 @@
+ 	Die("The number of levels must be equal to or greather than 1\n");
+ 
+     wavelet = Wavelet::CreateCDF(np, nd);
++#ifdef __GNUG_DEPRECATED__
+     u_int fstart = wavelet->GetGStart() <? wavelet->GetHStart();
+     u_int fend = wavelet->GetGEnd() >? wavelet->GetHEnd();
+     u_int limit = (-fstart >? fend)+1;
++#else /* !__GNUG_DEPRACATED__ */
++    u_int fstart = Min(wavelet->GetGStart(), wavelet->GetHStart());
++    u_int fend = Max(wavelet->GetGEnd(), wavelet->GetHEnd());
++    u_int limit = Max(-fstart, fend)+1;
++#endif /* !__GNUG_DEPRECATED__ */
+ #if 0
+     u_int start = fstart, end = fend;
+     for (u_int i = 1; i < numlevels; i++) {
