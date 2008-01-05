@@ -67,6 +67,9 @@ Statyczna biblioteka WAILI.
 mv -f debian/changelog debian/changelog.Debian
 
 %build
+%{__make} -C config \
+	CXX="%{__cxx}" \
+	OPTFLAGS="%{rpmcxxflags}"
 %{__make} \
 	CXX="%{__cxx}" \
 	OPTFLAGS="%{rpmcxxflags}"
