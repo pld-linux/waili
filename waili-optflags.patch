@@ -1,0 +1,13 @@
+--- ../BUILD/waili-gpl-19990723/config/Rules.Linux.g++.orig	2024-02-03 18:11:46.090701833 +0100
++++ ../BUILD/waili-gpl-19990723/config/Rules.Linux.g++	2024-02-03 18:36:59.059172047 +0100
+@@ -47,7 +47,6 @@ RANLIB =	ranlib
+ DEPLIBS =	$(LIBWAILI)
+ 
+ #https://wiki.debian.org/HardeningWalkthrough
+-CFLAGS += `dpkg-buildflags --get CFLAGS`
+-CPPFLAGS += `dpkg-buildflags --get CPPFLAGS`
+-CXXFLAGS += `dpkg-buildflags --get CXXFLAGS`
+-LFLAGS += `dpkg-buildflags --get LDFLAGS`
++CFLAGS += $(OPTCXXFLAGS)
++CPPFLAGS += $(OPTCPPFLAGS)
++LFLAGS += $(OPTLDFLAGS)

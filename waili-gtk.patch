@@ -1,0 +1,73 @@
+Description: code to convert from waili to GDK images and back
+Author: mennucc1@debian.org
+
+--- /dev/null
++++ waili-19990723/include/waili/gtk.h
+@@ -0,0 +1,67 @@
++
++#ifndef __WAILI_GTK_H__
++#define __WAILI_GTK_H__
++
++#include <waili/Image.h>
++
++#ifndef GDK_PIXBUF_MAJOR
++#error you need to install gtk 2.0 or gdk-pixbuf, and include <gdk-pixbuf/gdk-pixbuf.h> to use this header
++#endif
++
++Image *gdk_to_waili(GdkPixbuf *src)
++{
++  gchar * data = gdk_pixbuf_get_pixels(src);
++  int ch,channels=gdk_pixbuf_get_n_channels(src),
++    stride=gdk_pixbuf_get_rowstride(src),
++    w= gdk_pixbuf_get_width(src), h=gdk_pixbuf_get_height(src), c ,r ;
++
++  Image * dst = new Image(w,h,ch); 
++  for (r = 0; r < h; r++)
++    for (c = 0; c < w; c++)
++      for (ch = 0; ch < channels; ch++) {
++	  (*dst)(c, r, ch) = (PixType)
++	    ( data[ch+ c*channels + stride*r]-128);
++      }
++  return dst;
++}
++GdkPixbuf  *waili_to_gdk(Image *src)
++{
++  int ch,channels=src->GetChannels(), 
++    w=src->GetCols(),  h=src->GetRows(),   c ,r ;
++  GdkPixbuf  *dst=gdk_pixbuf_new
++    (GDK_COLORSPACE_RGB,//GdkColorspace colorspace,
++     (channels==4?1:0),//gboolean has_alpha,
++     8,//int bits_per_sample,
++     w,//int width,
++     h);//int height);
++  gchar * data = gdk_pixbuf_get_pixels(dst);
++
++  int    stride=gdk_pixbuf_get_rowstride(src);
++
++    switch(channels) {
++    case 1:
++  for (r = 0; r < h; r++)
++    for (c = 0; c < w; c++)      {
++	data[ c + stride*r]= 
++	data[ c + stride*r+1]= 
++	data[ c + stride*r+2]= 
++	  CLAMP((*src)(c, r, 0) +128,0,255);
++      }
++  break;
++    case 3:
++    case 4:
++
++  for (r = 0; r < h; r++)
++    for (c = 0; c < w; c++)
++      for (ch = 0; ch < channels; ch++) {
++	data[ch+ c*channels + stride*r]= 
++	  CLAMP((*src)(c, r, ch) +128,0,255);
++
++      }
++  break;
++    default: abort(); 
++    }
++  return dst;
++}
++
++#endif // __WAILI_GTK_H__

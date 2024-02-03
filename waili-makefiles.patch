@@ -1,0 +1,363 @@
+Description: changes to Makefiles to be more debian conformant
+Author: mennucc1@debian.org
+
+Index: waili-19990723/Rules.make
+===================================================================
+--- waili-19990723.orig/Rules.make	2014-01-13 15:17:12.000000000 +0100
++++ waili-19990723/Rules.make	2014-01-13 15:32:13.000000000 +0100
+@@ -20,8 +20,17 @@
+ #   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ #
+ 
++#changed for Debian
++# also, removed the '-o $@' part
+ %.o:		%.C
+-		$(CXX) $(CFLAGS) -c $< -o $@
++		$(LIBTOOLCXX) $(CXX) $(CPPFLAGS) $(CFLAGS) -c $< 
++
++%.lo:		%.C
++		$(LIBTOOLCXX) $(CXX) $(CPPFLAGS) $(CFLAGS) -c $< 
++
++%.d: %.C Makefile
++	        $(CXX) $(CPPFLAGS) -MM -E $< > $@
++
+ 
+ 
+ ifeq (.depend,$(wildcard .depend))
+Index: waili-19990723/Makefile
+===================================================================
+--- waili-19990723.orig/Makefile	2014-01-13 15:17:12.000000000 +0100
++++ waili-19990723/Makefile	2014-01-13 15:26:39.000000000 +0100
+@@ -25,14 +25,14 @@
+ SUBDIRS +=	man
+ endif
+ 
+-All:		Rules.config .depend
++All:		Rules.config depend-stamp
+ 		set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i; done
+ 
+ Rules.config:
+ 		$(MAKE) -C config
+ 
+ clean:
+-		rm -f .depend
++		rm -f depend-stamp .wailiDemo_history
+ 		set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i clean; done
+ 
+ distclean:	clean
+@@ -42,12 +42,17 @@
+ 		rm -f Rules.config
+ 		$(MAKE) Rules.config
+ 
+-.depend:
++depend-stamp:
+ 		set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i depend; done
+-		touch .depend
++		touch depend-stamp
+ 
+ depend:
+-		rm -f .depend
+-		$(MAKE) .depend
++		rm -f depend-stamp
++		$(MAKE) depend-stamp
+ 
+ dummy:
++
++#added for Debian
++install:	All
++		set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i install; done
++
+Index: waili-19990723/include/Makefile
+===================================================================
+--- waili-19990723.orig/include/Makefile	2014-01-13 15:17:11.000000000 +0100
++++ waili-19990723/include/Makefile	2014-01-13 15:26:39.000000000 +0100
+@@ -37,3 +37,10 @@
+ 
+ 
+ include ../Rules.make
++
++# ----------------------------------------- Installation
++#added for Debian     
++# You're going to have to be root to do this!
++install:        All
++	set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i install; done
++
+Index: waili-19990723/config/Configure
+===================================================================
+--- waili-19990723.orig/config/Configure	2014-01-13 15:17:12.000000000 +0100
++++ waili-19990723/config/Configure	2014-01-13 15:26:39.000000000 +0100
+@@ -25,6 +25,9 @@
+ arch=`uname`
+ compiler=g++	# We always assume the GNU compiler
+ 
++#normalize 
++cd $( dirname $0 )
++
+ case $arch in
+     Linux)
+     	# ix86-linux, m68k-linux etc.
+@@ -41,13 +44,53 @@
+ echo "    Configuring for $system"
+ echo
+ 
+-if [ "$PWD" != "" ]; then
+-    topdir=$PWD;
++
++topdir=$( pwd | sed -e 's@/config$@@' )
++
++rm -f ../Rules.config
++
++################added for Debian:
++#primitive opts
++if [ "$1" == --help -o "$1" == -h ] ; then
++cat <<EOF
++Usage:  $0 
++Provides simple configuration
++EOF
++fi
++# be nice
++cat <<EOF > ../Rules.config
++#this file was automatically generated
++#by the script config/$0
++#from config/Rules.$system.$compiler
++#on `date`
++#################DO NOT EDIT################
++EOF
++echo '#new Debian configuration' >> ../Rules.config
++#prefix for installation
++echo 'PREFIX=/usr' >> ../Rules.config
++echo 'PACKAGE=libwaili' >> ../Rules.config
++#libtool support, if available
++if which libtool >/dev/null ; then
++  echo 'LIBTOOL = libtool' >> ../Rules.config
++  echo 'LIBTOOLCXX = libtool --mode=compile ' >> ../Rules.config
++  echo 'LIBTOOLLD  = libtool --mode=link    ' >> ../Rules.config
++  echo 'LIBTOOLINSTALL = libtool --mode=install    ' >> ../Rules.config
++  LIBTOOL=libtool
++  echo "LIBWAILI = $topdir/lib/libwaili.la"  >> ../Rules.config
++else
++  LIBTOOL=''
++  echo "LIBWAILI = $topdir/lib/libwaili.a"  >> ../Rules.config
++fi
++#install
++if which install >/dev/null ; then
++  echo "INSTALL = install" >> ../Rules.config
+ else
+-    topdir=`pwd`;
++  echo "INSTALL = echo 'Sorry: you need a working install program ';false" >> ../Rules.config
++  echo MISSING install PROGRAM: you may not install
++  sleep 1
+ fi
+-topdir=`echo $topdir | sed -e 's@/config$@@'`
++##################
++
++sed -e "s@-top-dir-here-@$topdir@" < Rules.$system.$compiler >> ../Rules.config
+ 
+-rm -f ../Rules.config
+-sed -e "s@-top-dir-here-@$topdir@" < Rules.$system.$compiler > ../Rules.config
+ exit 0
+Index: waili-19990723/config/Rules.UNIX.g++
+===================================================================
+--- waili-19990723.orig/config/Rules.UNIX.g++	2014-01-13 15:17:12.000000000 +0100
++++ waili-19990723/config/Rules.UNIX.g++	2014-01-13 15:26:39.000000000 +0100
+@@ -37,9 +37,13 @@
+ #TIFFLIB =      -L$(TIFFDIR) -ltiff
+ OPTFLAGS =	-O3 -fomit-frame-pointer
+ #DEBUGFLAGS =	-DTRACK_MEMORY -DBOUNDS_CHECK -g
+-CFLAGS =	-Wall -I$(TOPDIR)/include $(TIFFINC) $(TIFFDEF) $(OPTFLAGS) \
+-		$(DEBUGFLAGS)
+-LFLAGS =	-L$(TOPDIR)/lib -lm -lwaili $(TIFFLIB)
++
++#changed for Debian: much cleaner
++CFLAGS =	-Wall $(OPTFLAGS) $(DEBUGFLAGS)
++CPPFLAGS =       -I../include -I../../include $(TIFFINC) $(TIFFDEF)
++
++#changed for debian: if -lwaili is specified, libtool fails to work
++LFLAGS =	 -lm $(LIBWAILI) $(TIFFLIB)
+ AR =		ar
+ RANLIB =	ranlib
+-DEPLIBS =	$(TOPDIR)/lib/libwaili.a
++DEPLIBS =	$(LIBWAILI)
+Index: waili-19990723/config/Rules.Linux.g++
+===================================================================
+--- waili-19990723.orig/config/Rules.Linux.g++	2014-01-13 15:17:12.000000000 +0100
++++ waili-19990723/config/Rules.Linux.g++	2014-01-13 15:31:23.000000000 +0100
+@@ -34,9 +34,13 @@
+ TIFFLIB =       -ltiff
+ OPTFLAGS =	-O3 -fomit-frame-pointer
+ #DEBUGFLAGS =	-DTRACK_MEMORY -DBOUNDS_CHECK -g
+-CFLAGS =	-Wall -I$(TOPDIR)/include $(TIFFINC) $(TIFFDEF) $(OPTFLAGS) \
+-		$(DEBUGFLAGS)
+-LFLAGS =	-L$(TOPDIR)/lib -lm -lwaili $(TIFFLIB)
++
++#changed for Debian: much cleaner; and you can move the directory around
++CFLAGS =	-Wall $(TIFFINC) $(TIFFDEF) $(OPTFLAGS) $(DEBUGFLAGS)
++CPPFLAGS =       -I$(TOPDIR)/include $(TIFFINC) $(TIFFDEF) 
++
++#changed for debian: if -lwaili is specified, libtool fails to work
++LFLAGS =	 -lm $(LIBWAILI) $(TIFFLIB)
+ AR =		ar
+ RANLIB =	ranlib
+-DEPLIBS =	$(TOPDIR)/lib/libwaili.a
++DEPLIBS =	$(LIBWAILI)
+Index: waili-19990723/lib/Makefile
+===================================================================
+--- waili-19990723.orig/lib/Makefile	2014-01-13 15:17:12.000000000 +0100
++++ waili-19990723/lib/Makefile	2014-01-13 15:26:39.000000000 +0100
+@@ -26,23 +26,54 @@
+ LIBOBJS =	Channel.o Color.o Image.o LChannel.o LChannelC.o LChannelCR.o \
+ 		LChannelR.o Lifting.o NTChannel.o Storage.o Timer.o Util.o \
+ 		Wavelet.o Wavelet_CDF_1_x.o Wavelet_CDF_2_x.o \
+-		Wavelet_CDF_4_x.o Wavelet_JPEG2000.o
++		Wavelet_CDF_4_x.o Wavelet_JPEG2000.o Wavelet_bin.o \
++		Wavelet_gain.o myLifting.o 
+ 
+-LIB =		libwaili.a
++LIB =		$(LIBWAILI)
+ 
+-All:		$(LIB)
++#changed for Debian: using libtool if LIBTOOL is defined
++ifdef LIBTOOL
+ 
+-$(LIB):		$(LIBOBJS)
++All: $(LIB)  $(LIB:.la=.a)
++
++$(LIB)  :	$(LIBOBJS:.o=.d) $(LIBOBJS:.o=.lo) $(LIBOBJS)
++	$(LIBTOOL) --mode=link $(CXX) $(CFLAGS)  $(TIFFLIB) -o $(LIB) \
++		-rpath /usr/lib \
++		-version-info "$(LIBVERSION)" \
++		$(LIBOBJS:.o=.lo)
++
++
++$(LIB:.la=.a) :	$(LIBOBJS:.o=.d) $(LIBOBJS:.o=.lo) $(LIBOBJS)
++		$(LIBTOOL) --mode=link $(CXX) $(CFLAGS)  -o $(LIB:.la=.a) \
++		-version-info "$(LIBVERSION)" \
++		$(LIBOBJS)
++
++
++else
++
++$(LIB):	$(LIBOBJS:.o=.d) $(LIBOBJS)
+ 		rm -f $(LIB)
+ 		$(AR) rc $(LIB) $(LIBOBJS)
+ 		$(RANLIB) $(LIB)
+ 
+-depend:
+-		rm -f .depend
+-		$(CXX) $(CFLAGS) -M -E *.C > .depend
++endif
++
++depend: $(LIBOBJS:.o=.d)
++
++include $(LIBOBJS:.o=.d)
+ 
+ clean:
+-		rm -f .depend *.o *.a
++		rm -f .depend *.o *.d *.a *.lo *.la *.so
++		rm -rf .libs
+ 
+ 
+ include ../Rules.make
++
++# ----------------------------------------- Installation
++# added for Debian GNU/Linux.
++
++install:   $(LIB)
++	$(INSTALL) -d $(DESTDIR)$(PREFIX)/lib
++	$(LIBTOOLINSTALL)  $(INSTALL) $(LIB) $(DESTDIR)$(PREFIX)/lib
++
++
+Index: waili-19990723/man/Makefile
+===================================================================
+--- waili-19990723.orig/man/Makefile	2014-01-13 15:17:11.000000000 +0100
++++ waili-19990723/man/Makefile	2014-01-13 15:26:39.000000000 +0100
+@@ -20,6 +20,9 @@
+ #   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ #
+ 
++#added for Debian; defines TOPDIR
++include ../Rules.config
++
+ ifeq (Rules.LaTeX.config,$(wildcard Rules.LaTeX.config))
+ include Rules.LaTeX.config
+ endif
+@@ -67,5 +70,15 @@
+ # -----------------------------------------------------------------------------
+ 
+ include Rules.LaTeX.build
++
+ depend:
+ 
++# ----------------------------------------- Installation
++#added for Debian     
++# You're going to have to be root to do this!
++
++
++install:  $(DOC).ps
++	$(INSTALL) -d  $(DESTDIR)$(PREFIX)/share/doc/$(PACKAGE)
++	$(INSTALL) $(DOC).ps $(DESTDIR)$(PREFIX)/share/doc/$(PACKAGE)
++
+Index: waili-19990723/man/Rules.LaTeX.config
+===================================================================
+--- waili-19990723.orig/man/Rules.LaTeX.config	2014-01-13 15:17:11.000000000 +0100
++++ waili-19990723/man/Rules.LaTeX.config	2014-01-13 15:26:39.000000000 +0100
+@@ -24,7 +24,7 @@
+ # Makefile for LaTeX2e documents (configuration)
+ # -----------------------------------------------------------------------------
+ 
+-LATEX =		./rlatex
++LATEX =		$(TOPDIR)/man/rlatex
+ BIBTEX =	bibtex
+ RM =		rm -f
+ FIG2PS =	fig2dev -L ps
+Index: waili-19990723/man/Rules.LaTeX.build
+===================================================================
+--- waili-19990723.orig/man/Rules.LaTeX.build	2014-01-13 15:17:11.000000000 +0100
++++ waili-19990723/man/Rules.LaTeX.build	2014-01-13 15:26:39.000000000 +0100
+@@ -24,7 +24,8 @@
+ # Makefile for LaTeX2e documents (build)
+ # -----------------------------------------------------------------------------
+ 
+-fake:		$(DOC).dvi $(EXTRA)
++#debian change: dvi is not really needed as long as ps is there
++fake:		$(DOC).ps $(EXTRA)
+ 
+ $(DOC).dvi:	$(LINKS) $(TEXSRCS) $(TEXSTYLES) $(FIGS)
+ 
+@@ -43,15 +44,24 @@
+ 
+ pdf:		$(DOC).pdf
+ 
++#THIS IS A DIRTY DIRTY DIRTY HACK
+ clean:
+-		$(RM) *.aux *.dvi *.log *.toc *.bbl *.blg $(DOC).ps \
+-		$(DOC).pdf $(GENFIGS) $(LINKS) $(EXTRACLEAN)
++	$(RM) *.aux *.log *.toc *.bbl *.blg *.dvi
++
++.INTERMEDIATE: $(DOC).dvi
++
++#this way docs are distributed in source!
++extradistclean: clean;
++	$(RM) $(DOC).ps $(DOC).pdf $(GENFIGS) $(LINKS) $(EXTRACLEAN)
++
++
+ 
+ # -----------------------------------------------------------------------------
+ # Elementary build rules
+ # -----------------------------------------------------------------------------
+ 
+ %.dvi:		%.tex
++		chmod +x $(LATEX)
+ 		$(LATEX) $<
+ 
+ %.bbl:		%.aux
+@@ -78,5 +88,7 @@
+ %.eps:		%.eps.gz
+ 		$(ZCAT) $< > $@
+ 
+-%:		$(LINKEDDIR)/%
+-		ln -sf $<
++#changed for Debian
++#this gives infinite recursion in "include ../Rules.config"
++#%:		$(LINKEDDIR)/%
++#		ln -sf $<

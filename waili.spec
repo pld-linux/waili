@@ -3,19 +3,27 @@ Summary(pl.UTF-8):	WAILI - biblioteka transformaty falkowej
 Name:		waili
 Version:	19990723
 Release:	1
-License:	GPL
+License:	GPL v2+
 Group:		Libraries
-# Source0Download: http://www.cs.kuleuven.ac.be/~wavelets/Download.html
-Source0:	http://www.cs.kuleuven.ac.be/~wavelets/%{name}-gpl-%{version}.tar.gz
+# Source0Download: https://nalag.cs.kuleuven.be/research/software/wavelets/Download.html
+Source0:	https://nalag.cs.kuleuven.be/research/software/wavelets/%{name}-gpl-%{version}.tar.gz
 # Source0-md5:	0bdbb8f6e1e44a575a5aebd7bca7fdcd
-Patch0:		%{name}-debian.patch
-Patch1:		%{name}-libtool_tag_cxx.patch
-Patch2:		%{name}-gcc4.patch
-URL:		http://www.cs.kuleuven.ac.be/~wavelets/
+# Debian patches
+Patch0:		%{name}-various_code.patch
+Patch1:		%{name}-rangecheck.patch
+Patch2:		%{name}-makefiles.patch
+Patch3:		%{name}-gtk.patch
+Patch4:		%{name}-doc-files.patch
+Patch5:		%{name}-dpkg-buildflags.patch
+Patch6:		%{name}-reproducible_build.patch
+# PLD
+Patch10:	%{name}-libtool_tag_cxx.patch
+Patch11:	%{name}-optflags.patch
+URL:		https://nalag.cs.kuleuven.be/research/software/wavelets/
 BuildRequires:	libjpeg-devel
 BuildRequires:	libstdc++-devel
 BuildRequires:	libtiff-devel
-BuildRequires:	libtool
+BuildRequires:	libtool >= 2:1.5
 BuildRequires:	tetex-dvips
 BuildRequires:	tetex-format-latex
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
@@ -63,16 +71,23 @@ Statyczna biblioteka WAILI.
 %patch0 -p1
 %patch1 -p1
 %patch2 -p1
-
-mv -f debian/changelog debian/changelog.Debian
+%patch3 -p1
+%patch4 -p1
+%patch5 -p1
+%patch6 -p1
+%patch10 -p1
 
 %build
 %{__make} -C config \
 	CXX="%{__cxx}" \
-	OPTFLAGS="%{rpmcxxflags}"
+	OPTCPPFLAGS="%{rpmcppflags}" \
+	OPTCXXFLAGS="%{rpmcxxflags}" \
+	OPTLDFLAGS="%{rpmldflags}"
 %{__make} \
 	CXX="%{__cxx}" \
-	OPTFLAGS="%{rpmcxxflags}"
+	OPTCPPFLAGS="%{rpmcppflags}" \
+	OPTCXXFLAGS="%{rpmcxxflags}" \
+	OPTLDFLAGS="%{rpmldflags}"
 
 %install
 rm -rf $RPM_BUILD_ROOT
@@ -88,8 +103,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(644,root,root,755)
-%doc debian/*
 %attr(755,root,root) %{_libdir}/libwaili.so.*.*.*
+%attr(755,root,root) %ghost %{_libdir}/libwaili.so.0
 
 %files devel
 %defattr(644,root,root,755)

@@ -1,0 +1,22 @@
+Description: FTBFS with GCC 4.2: uses removed minimum/maximum operator
+Author: ???
+Bug-Debian: http://bugs.debian.org/385523
+Description: FTBFS: Rangecheck.C:218: error: expected primary-expression before '?' token
+Author: Sebastian Bober <sbober@servercare.de>
+Bug-Debian: http://bugs.debian.org/441493
+
+--- waili-19990723.orig/test/Rangecheck.C
++++ waili-19990723/test/Rangecheck.C
+@@ -213,9 +213,9 @@ int main(int argc, char *argv[])
+ 	Die("The number of levels must be equal to or greather than 1\n");
+ 
+     wavelet = Wavelet::CreateCDF(np, nd);
+-    u_int fstart = wavelet->GetGStart() <? wavelet->GetHStart();
+-    u_int fend = wavelet->GetGEnd() >? wavelet->GetHEnd();
+-    u_int limit = (-fstart >? fend)+1;
++    u_int fstart = std::min(wavelet->GetGStart() , wavelet->GetHStart());
++    u_int fend = std::max(wavelet->GetGEnd() , wavelet->GetHEnd());
++    u_int limit = ( (-fstart > fend) ? -fstart : fend )+1;
+ #if 0
+     u_int start = fstart, end = fend;
+     for (u_int i = 1; i < numlevels; i++) {

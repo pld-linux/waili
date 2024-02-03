@@ -1,0 +1,2010 @@
+--- waili-19990723.orig/include/waili/Lifting.h
++++ waili-19990723/include/waili/Lifting.h
+@@ -35,6 +35,10 @@ class Lifting {
+     public:
+ 	virtual ~Lifting();
+ 
++
++	virtual void Lift_bin(int type)   const = 0;
++	virtual void ILift_bin(int type)   const = 0;
++
+ 	// Lifting Steps (Full Rounding)
+ 	virtual void Lift_L1R1_FR(int primal, const s16 b[2], const u16 a)
+ 	    const = 0;
+@@ -109,6 +113,12 @@ class LiftChannelR : public Lifting {
+ 	LiftChannelR(NTChannel *lowpass, NTChannel *highpass);
+ 	virtual ~LiftChannelR();
+ 
++
++
++	virtual void Lift_bin(int type)   const ;
++	virtual void ILift_bin(int type)   const ;
++
++
+ 	// Lifting Steps (Full Rounding)
+ 	virtual void Lift_L1R1_FR(int primal, const s16 b[2], const u16 a)
+ 	    const;
+@@ -179,6 +189,14 @@ class LiftChannelC : public Lifting {
+ 	LiftChannelC(NTChannel *lowpass, NTChannel *highpass);
+ 	virtual ~LiftChannelC();
+ 
++
++
++
++	virtual void Lift_bin(int type)   const;
++	virtual void ILift_bin(int type)   const;
++
++
++
+ 	// Lifting Steps (Full Rounding)
+ 	virtual void Lift_L1R1_FR(int primal, const s16 b[2], const u16 a)
+ 	    const;
+--- waili-19990723.orig/include/waili/Wavelet.h
++++ waili-19990723/include/waili/Wavelet.h
+@@ -34,6 +34,16 @@
+ #define LIFTING_OPTIMIZE_STEPS	1	// Use optimized lifting steps
+ 
+ 
++// Unique private IDs
++enum Wavelet_ID {
++  ID_Lazy = 0,
++  ID_CDF_1_1 = 1, ID_CDF_1_3 = 2, ID_CDF_1_5 = 3,
++  ID_CDF_2_2 = 4, ID_CDF_2_4 = 5, ID_CDF_2_6 = 6,
++  ID_CDF_4_2 = 7, ID_CDF_4_4 = 8, ID_CDF_4_6 = 9,
++  ID_CRF_13_7 = 100, ID_SWE_13_7 = 101
++};
++
++
+ 
+ // ----------------------------------------------------------------------------
+ //
+@@ -62,29 +72,21 @@ class Wavelet {
+ 	int GetShiftH(void) const;
+ 
+ 	// Unique private IDs for different Wavelets
+-	u8 GetID(void) const;
+-	static Wavelet *CreateFromID(u8 id);
++	Wavelet_ID GetID(void) const {    return ID; };
++
++	static Wavelet *CreateFromID(Wavelet_ID id);
+ 
+     protected:
+ 	int GStart, GEnd, HStart, HEnd;
+ 	// Normalization
+ 	int ShiftL, ShiftH;
+ 
+-	// Unique private IDs
+-	enum Wavelet_IDs {
+-	    ID_Lazy = 0,
+-	    ID_CDF_1_1 = 1, ID_CDF_1_3 = 2, ID_CDF_1_5 = 3,
+-	    ID_CDF_2_2 = 4, ID_CDF_2_4 = 5, ID_CDF_2_6 = 6,
+-	    ID_CDF_4_2 = 7, ID_CDF_4_4 = 8, ID_CDF_4_6 = 9,
+-	    ID_CRF_13_7 = 100, ID_SWE_13_7 = 101
+-	};
+-	u8 ID;
++	Wavelet_ID ID;
+ 
+     private:
+ 	static const char *rcsid;
+ };
+ 
+-
+ // ----------------------------------------------------------------------------
+ 
+ 
+@@ -337,7 +339,6 @@ class Wavelet_CRF_13_7 : public Wavelet
+ 	// Lifting steps on Channels
+ 	virtual void CakeWalk(Lifting &lifting) const;
+ 	virtual void ICakeWalk(Lifting &lifting) const;
+-
+     protected:
+ 	static const s16 D1b[4];
+ 	static const u16 D1a;
+@@ -367,6 +368,9 @@ class Wavelet_SWE_13_7 : public Wavelet
+ 	static const char *rcsid;
+ };
+ 
++/////////////////////////////////////////////////////////////
++
++#include "waili/Wavelet_bin.h"
+ 
+ /////////////////////////////////////////////////////////////////////////////
+ //
+@@ -405,11 +409,6 @@ inline int Wavelet::GetShiftH(void) cons
+     return(ShiftH);
+ }
+ 
+-inline u8 Wavelet::GetID(void) const
+-{
+-    return ID;
+-}
+-
+ inline Wavelet_Lazy::Wavelet_Lazy()
+ {
+     HStart = 0;
+--- waili-19990723.orig/include/waili/Blit.h
++++ waili-19990723/include/waili/Blit.h
+@@ -102,7 +102,7 @@ inline void FillRect(Type *dst, u_int dw
+ 
+ template <class Type>
+ inline void FillRect(Type *dst, u_int dw, u_int dx, u_int dy, u_int cols,
+-		     u_int rows, Type value)
++		     u_int rows, Type value )
+ {
+     FillRect(dst+dy*dw+dx, dw, cols, rows, value);
+ }
+@@ -121,7 +121,7 @@ inline void ClearRect(Type *dst, u_int d
+ 
+ template <class Type>
+ inline void ClearRect(Type *dst, u_int dw, u_int dx, u_int dy, u_int cols,
+-		      u_int rows)
++		      u_int rows, Type value)
+ {
+     ClearRect(dst+dy*dw+dx, dw, cols, rows, value);
+ }
+--- waili-19990723.orig/include/waili/Storage.h
++++ waili-19990723/include/waili/Storage.h
+@@ -87,6 +87,7 @@ class Stream {
+ 	void Write(const f32 &x);
+ 	void Write(const f64 &x);
+ 
++        int Feof() { return feof(File);	};
+ 	void Puts(const char *s);
+ 	void Printf(const char *fmt, ...)
+ #ifdef __GNUG__
+@@ -94,8 +95,9 @@ class Stream {
+ #endif // __GNUG__
+ ;
+ 
++  
+     protected:
+-	FILE *File;
++        FILE *File;
+ 	char *Name;
+ 	char *Mode;
+ 	u_int Compressed;
+--- /dev/null
++++ waili-19990723/include/waili/Wavelet_gain.h
+@@ -0,0 +1,7 @@
++
++double *wavelet_gaussian_variance_gain_by_type(TransformType  type);
++
++double *wavelet_gaussian_variance_gain(Channel *C);
++
++double *wavelet_uniform_maximum_gain_by_type(int type);
++
+--- waili-19990723.orig/include/waili/Channel.h
++++ waili-19990723/include/waili/Channel.h
+@@ -34,8 +34,8 @@ enum TransformType {
+ };
+ 
+ struct TransformDescriptor {
+-    u8 type;	// TransformType
+-    u8 filter;	// Wavelet_IDs
++    TransformType type;	// TransformType
++    Wavelet_ID filter;	// Wavelet_IDs
+ };
+ 
+ 
+@@ -62,13 +62,16 @@ class Channel {
+ 
+ 	// Properties
+ 	u_int GetCols(void) const;
+-	u_int GetRows(void) const;
++	u_int GetRows(void) const;	
+ 	int GetOffsetX(void) const;
+ 	int GetOffsetY(void) const;
+ 	virtual void GetMask(u_int &maskx, u_int &masky) const = 0;
+ 	virtual u_int GetDepth(void) const = 0;
++	virtual u_int GetSubbands(void) const = 0;
+ 	virtual double Psnr(const Channel &channel, PixType maxval = 255)
+ 	    const;
++	virtual double MSE(const Channel &channel)
++	    const;
+ 	virtual u64 *FullHistogram(PixType &min, PixType &max, u64 &numpixels)
+ 	    const = 0;
+ 	double Entropy(void) const;
+@@ -76,6 +79,7 @@ class Channel {
+ 	// Manipulation
+ 	virtual PixType &operator()(u_int c, u_int r) = 0;
+ 	virtual PixType operator()(u_int c, u_int r) const = 0;
++	virtual PixType *pixaddr(u_int c, u_int r) = 0;
+ 	virtual void Clear(void) = 0;
+ 	virtual void Resize(u_int cols, u_int rows);
+ 	virtual Channel *Clone(void) const = 0;
+--- waili-19990723.orig/include/waili/NTChannel.h
++++ waili-19990723/include/waili/NTChannel.h
+@@ -49,6 +49,7 @@ class NTChannel : public Channel {
+ 	// Properties
+ 	virtual void GetMask(u_int &maskx, u_int &masky) const;
+ 	virtual u_int GetDepth(void) const;
++	u_int GetSubbands(void) const { return 0; };
+ 	void GetMinMax(PixType &min, PixType &max, u_int smoothing = 0) const;
+ 	u64 *Histogram(PixType min, PixType max) const;
+ 	virtual u64 *FullHistogram(PixType &min, PixType &max, u64 &numpixels)
+@@ -57,6 +58,7 @@ class NTChannel : public Channel {
+ 	// Manipulation
+ 	virtual PixType &operator()(u_int c, u_int r);
+ 	virtual PixType operator()(u_int c, u_int r) const;
++	PixType *pixaddr(u_int c, u_int r);
+ 	virtual void Clear(void);
+ 	virtual void Resize(u_int cols, u_int rows);
+ 	virtual NTChannel *Clone(void) const;
+@@ -151,6 +153,16 @@ inline PixType &NTChannel::operator()(u_
+     return(Data[r*Cols+c]);
+ }
+ 
++inline PixType *NTChannel::pixaddr(u_int c, u_int r)
++{
++#ifdef BOUNDS_CHECK
++    assert(Data != NULL);
++    assert(c < Cols);
++    assert(r < Rows);
++#endif // BOUNDS_CHECK
++    return( &(Data[r*Cols+c]));
++}
++
+ inline PixType NTChannel::operator()(u_int c, u_int r) const
+ {
+ #ifdef BOUNDS_CHECK
+--- waili-19990723.orig/include/waili/Util.h
++++ waili-19990723/include/waili/Util.h
+@@ -63,7 +63,7 @@ void DumpMemoryStatus(void);
+ template <class Type>
+ inline Type Min(Type x, Type y)
+ {
+-#ifdef __GNUG__
++#ifdef __GNUG_DEPRECATED__
+     return(x <? y);
+ #else /* !__GNUG__ */
+     return(x < y ? x : y);
+@@ -73,7 +73,7 @@ inline Type Min(Type x, Type y)
+ template <class Type>
+ inline Type Max(Type x, Type y)
+ {
+-#ifdef __GNUG__
++#ifdef __GNUG_DEPRECATED__
+     return(x >? y);
+ #else /* !__GNUG__ */
+     return(x > y ? x : y);
+--- /dev/null
++++ waili-19990723/include/waili/Wavelet_bin.h
+@@ -0,0 +1,15 @@
++
++
++class Wavelet_Binary : public Wavelet {
++public:
++  Wavelet_Binary();
++  
++  // Lifting steps on Channels
++  void CakeWalk(Lifting &lifting) const ;
++  void ICakeWalk(Lifting &lifting) const ;
++  Wavelet_Binary *Clone(void) const;
++
++private:
++  static const char *rcsid;
++};
++
+--- waili-19990723.orig/include/waili/Image.h
++++ waili-19990723/include/waili/Image.h
+@@ -24,7 +24,7 @@
+ #define WAILI_IMAGE_H
+ 
+ #include <assert.h>
+-#include <stream.h>
++#include <sstream>
+ 
+ #include "Channel.h"
+ #include "Util.h"
+@@ -76,7 +76,7 @@ class Image {
+ 
+ 	// Manipulation
+ 	Channel*& operator[](u_int channel);
+-	const Channel*& operator[](u_int channel) const;
++	Channel*& operator[](u_int channel) const;
+ 	PixType& operator()(u_int c, u_int r, u_int ch = 0);
+ 	const PixType operator()(u_int c, u_int r, u_int ch = 0) const;
+ 
+@@ -136,12 +136,12 @@ inline Image::Image()
+ inline Image::Image(u_int channels)
+     : NumChannels(channels), Channels(NULL)
+ {
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     ::Clear(Channels, NumChannels);
+ }
+ 
+ 
+-inline Channel*& Image::operator[](u_int channel)
++inline Channel*& Image::operator[](u_int channel) const
+ {
+ #ifdef BOUNDS_CHECK
+     assert(channel < NumChannels);
+@@ -149,7 +149,7 @@ inline Channel*& Image::operator[](u_int
+     return(Channels[channel]);
+ }
+ 
+-inline const Channel*& Image::operator[](u_int channel) const
++inline Channel*& Image::operator[](u_int channel)
+ {
+ #ifdef BOUNDS_CHECK
+     assert(channel < NumChannels);
+--- waili-19990723.orig/include/waili/LChannel.h
++++ waili-19990723/include/waili/LChannel.h
+@@ -54,6 +54,7 @@ class LChannel : public Channel {
+ 
+ 	// Properties
+ 	virtual u_int GetDepth(void) const;
++	u_int GetSubbands(void) const;
+ 	virtual TransformType GetTransformType(void) const = 0;
+ 	TransformDescriptor *GetTransform(void) const;
+ 	virtual u64 *FullHistogram(PixType &min, PixType &max, u64 &numpixels)
+@@ -64,7 +65,7 @@ class LChannel : public Channel {
+ 	// Manipulation
+ 	virtual void Clear(void);
+ 	Channel* &operator[](SubBand band);
+-	const Channel* &operator[](SubBand band) const;
++	Channel* &operator[](SubBand band) const;
+ 	virtual LChannel *Clone(void) const = 0;
+ 
+ 	// Wavelet Transforms
+@@ -140,6 +141,11 @@ inline u_int LChannel::GetDepth(void) co
+     return(1+SubBands[0]->GetDepth());
+ }
+ 
++inline  u_int LChannel::GetSubbands(void) const
++{
++  return NumSubBands;
++}
++
+ inline int LChannel::GetShift(SubBand band)
+ {
+     assert((u_int)band < NumSubBands);
+@@ -149,14 +155,14 @@ inline int LChannel::GetShift(SubBand ba
+ inline Channel* &LChannel::operator[](SubBand band)
+ {
+     assert((u_int)band < NumSubBands);
+-    assert(SubBands[band] != NULL);
++    //assert(SubBands[band] != NULL);
+     return(SubBands[band]);
+ }
+ 
+-inline const Channel* &LChannel::operator[](SubBand band) const
++inline Channel* &LChannel::operator[](SubBand band) const
+ {
+     assert((u_int)band < NumSubBands);
+-    assert(SubBands[band] != NULL);
++    //assert(SubBands[band] != NULL);
+     return(SubBands[band]);
+ }
+ 
+--- waili-19990723.orig/include/waili/LChannelCR.h
++++ waili-19990723/include/waili/LChannelCR.h
+@@ -53,6 +53,8 @@ class LChannelCR : public LChannel {
+ 	// Manipulation
+ 	virtual PixType &operator()(u_int c, u_int r);
+ 	virtual PixType operator()(u_int c, u_int r) const;
++	PixType *pixaddr(u_int c, u_int r);
++
+ 	virtual void Resize(u_int cols, u_int rows);
+ 	virtual LChannelCR *Clone(void) const;
+ 	virtual void SetOffsetX(int offx);
+@@ -184,6 +186,29 @@ inline PixType LChannelCR::operator()(u_
+     return((*channel)(c, r));
+ }
+ 
++inline PixType *LChannelCR::pixaddr(u_int c, u_int r)
++{
++    u_int band = SubBand_LL;
++    Channel *channel;
++#ifdef BOUNDS_CHECK
++    assert(c < Cols);
++    assert(r < Rows);
++#endif // BOUNDS_CHECK
++    if (r >= GetRlow()) {
++	r -= GetRlow();
++	band += SubBand_HL;
++    }
++    if (c >= GetClow()) {
++	c -= GetClow();
++	band += SubBand_LH;
++    }
++    channel = SubBands[band];
++#ifdef BOUNDS_CHECK
++    assert(channel != NULL);
++#endif // BOUNDS_CHECK
++    return channel->pixaddr(c, r);
++}
++
+ inline LChannelCR *LChannelCR::Clone(void) const
+ {
+     return(new LChannelCR(*this));
+--- waili-19990723.orig/include/waili/LChannelC.h
++++ waili-19990723/include/waili/LChannelC.h
+@@ -49,6 +49,8 @@ class LChannelC : public LChannel {
+ 	// Manipulation
+ 	virtual PixType &operator()(u_int c, u_int r);
+ 	virtual PixType operator()(u_int c, u_int r) const;
++	PixType *pixaddr(u_int c, u_int r);
++
+ 	virtual void Resize(u_int cols, u_int rows);
+ 	virtual LChannelC *Clone(void) const;
+ 	virtual void SetOffsetX(int offx);
+@@ -156,6 +158,25 @@ inline PixType LChannelC::operator()(u_i
+     return((*channel)(c, r));
+ }
+ 
++inline PixType *LChannelC::pixaddr(u_int c, u_int r) 
++{
++    Channel *channel;
++#ifdef BOUNDS_CHECK
++    assert(c < Cols);
++    assert(r < Rows);
++#endif // BOUNDS_CHECK
++    if (r < GetRlow())
++	channel = SubBands[0];
++    else {
++	r -= GetRlow();
++	channel = SubBands[1];
++    }
++#ifdef BOUNDS_CHECK
++    assert(channel != NULL);
++#endif // BOUNDS_CHECK
++    return channel->pixaddr(c, r);
++}
++
+ inline LChannelC *LChannelC::Clone(void) const
+ {
+     return(new LChannelC(*this));
+--- waili-19990723.orig/include/waili/Makefile
++++ waili-19990723/include/waili/Makefile
+@@ -39,7 +39,8 @@ RCSOBJS =	Blit.h \
+ 		Timer.h \
+ 		Types.h \
+ 		Util.h \
+-		Wavelet.h
++		Wavelet.h \
++		Wavelet_bin.h
+ 
+ All:		$(RCSOBJS)
+ 
+@@ -48,3 +49,10 @@ depend:		$(RCSOBJS)
+ clean:
+ 
+ include ../../Rules.make
++
++# ----------------------------------------- Installation
++#added for Debian     
++# You're going to have to be root to do this!
++install:        All
++	$(INSTALL) -d  $(DESTDIR)$(PREFIX)/include/waili
++	$(INSTALL) -m 644 $(RCSOBJS) $(DESTDIR)$(PREFIX)/include/waili
+--- waili-19990723.orig/include/waili/LChannelR.h
++++ waili-19990723/include/waili/LChannelR.h
+@@ -49,6 +49,8 @@ class LChannelR : public LChannel {
+ 	// Manipulation
+ 	virtual PixType &operator()(u_int c, u_int r);
+ 	virtual PixType operator()(u_int c, u_int r) const;
++	PixType *pixaddr(u_int c, u_int r);
++
+ 	virtual void Resize(u_int cols, u_int rows);
+ 	virtual LChannelR *Clone(void) const;
+ 	virtual void SetOffsetX(int offx);
+@@ -156,6 +158,27 @@ inline PixType LChannelR::operator()(u_i
+     return((*channel)(c, r));
+ }
+ 
++
++inline PixType *LChannelR::pixaddr(u_int c, u_int r)
++{
++    Channel *channel;
++#ifdef BOUNDS_CHECK
++    assert(c < Cols);
++    assert(r < Rows);
++#endif // BOUNDS_CHECK
++    if (c < GetClow())
++	channel = SubBands[0];
++    else {
++	c -= GetClow();
++	channel = SubBands[1];
++    }
++#ifdef BOUNDS_CHECK
++    assert(channel != NULL);
++#endif // BOUNDS_CHECK
++    return channel->pixaddr(c, r);
++}
++
++
+ inline LChannelR *LChannelR::Clone(void) const
+ {
+     return(new LChannelR(*this));
+--- waili-19990723.orig/include/waili/Types.h
++++ waili-19990723/include/waili/Types.h
+@@ -58,5 +58,8 @@ typedef double			f64;	/* 64 bit floating
+ 
+ typedef s16			PixType;
+ 
++#ifdef __WIN32__
++typedef unsigned int    u_int;
++#endif
+ 
+ #endif // WAILI_TYPES_H
+--- waili-19990723.orig/test/Proof.C
++++ waili-19990723/test/Proof.C
+@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
+ 	Usage();
+     im1.Import(infile);
+     Wavelet *wavelet = Wavelet::CreateCDF(np, nd);
+-    u8 id = wavelet->GetID();
++    Wavelet_ID id = wavelet->GetID();
+     delete wavelet;
+     channels = im1.GetChannels();
+     if (channels != 1)
+--- waili-19990723.orig/test/Demo.C
++++ waili-19990723/test/Demo.C
+@@ -1,7 +1,7 @@
+ //
+ //	Simple Interactive Demo
+ //
+-//  $Id: Demo.C,v 4.6.2.3.2.1 1999/07/20 16:16:19 geert Exp $
++//  $Id: Demo.C,v 1.1 2001/05/21 15:33:03 andrea Exp andrea $
+ //
+ //  Copyright (C) 1996-1999 Department of Computer Science, K.U.Leuven, Belgium
+ //
+@@ -172,7 +172,7 @@ static void DeleteArgs(int argc, const c
+ 
+ 
+     /*
+-     *  Partial strcasecmp() (s1 may be an abbreviation for s2)
++     *  Partial strcasecmp () (s1 may be an abbreviation for s2)
+      */
+ 
+ static int PartStrCaseCmp(const char *s1, const char *s2)
+@@ -193,16 +193,46 @@ static int PartStrCaseCmp(const char *s1
+ }
+ 
+ 
++static int do_it(const struct Command &c , int argc, const char *argv[])
++{
++  try {
++    try {
++      try {
++	c.Function(argc-1, argv+1);
++      }
++      catch (char *message) { fprintf(stderr,"EXCEPTION %s\n",message); } 
++    }
++    catch (char message[]) { fprintf(stderr,"EXCEPTION %s\n",message); } 
++  }
++  catch (std::exception e) { fprintf(stderr,"EXCEPTION %s\n",e.what());};
++  return 1;
++}
++
+ static int ExecCommand(const struct Command commands[], u_int numcommands,
+ 		       int argc, const char *argv[])
+ {
+-    if (argc)
+-	for (u_int i = 0; i < numcommands; i++)
+-	    if (PartStrCaseCmp(argv[0], commands[i].Name)) {
+-		commands[i].Function(argc-1, argv+1);
+-		return 1;
+-	    }
+-    return 0;
++
++  int ci=-1;
++  if (argc) {
++    for (u_int i = 0; i < numcommands; i++)   {
++      /* exact match, for short commands */
++      if ( strcmp(argv[0], commands[i].Name) == 0)  {	
++	return do_it(commands[i],argc,argv);
++      }
++      if (PartStrCaseCmp(argv[0], commands[i].Name)) {
++	if(ci>=0)	{
++	  fprintf(stderr,
++		  "Command abbreviation is ambiguous: '%s' or '%s'?\n",
++		  commands[ci].Name,commands[i].Name	);
++	  return 1;
++	}
++	ci=i;
++      } }
++    if(ci>=0) {
++      return do_it(commands[ci],argc,argv);
++    }   
++  }
++  return 0;
+ }
+ 
+ static void Do_NotYetImplemented(int, const char **)
+@@ -245,9 +275,11 @@ static int NoWavelet(void)
+ 
+ void Do_Help(int, const char **)
+ {
+-    fputs("\nDemo\n\n"
++    fputs("\n\n"
+ 	 "    Help, ?            Display this help\n"
+ 	 "    Quit, eXit         Terminate program\n"
++	 "    New <width> <height> <channels>\n"
++         "                       Creates a new empty image\n"
+ 	 "    Load <image>       Load an image\n"
+ 	 "    Save <image>       Save an image\n"
+ 	 "    View               View the current image\n"
+@@ -269,7 +301,9 @@ void Do_Help(int, const char **)
+ 	 "    Histogram <level> <subband> <channel>\n"
+ 	 "                       View the histogram of a subband\n"
+ 	 "    Entropy            Calculate the first-order entropy in bits per pixel\n"
+-	 "    Yuv                Convert from RGB to YUVr (or vice versa)\n"
++	 "    Yuv                Convert from RGB to YUVr\n"
++	 "    Rgb                Convert from YUVr to RGB\n"
++	 "    Quantize <lev>..   Quantizes the channels  \n"
+ 	 "\n", stderr);
+ }
+ 
+@@ -293,8 +327,33 @@ void Do_Load(int argc, const char *argv[
+     ImageLoaded = 1;
+ }
+ 
++
++void Do_New(int argc, const char *argv[])
++{
++  if (argc < 3) {
++    fputs("Invalid arguments\n", stderr);
++    return;
++  }
++  u_int w  = atoi(argv[0]);
++  u_int h  = atoi(argv[1]);
++  u_int ch = atoi(argv[2]);
++
++  /* DONT DO THIS : 
++     if(ImageLoaded)     MyImage.~Image();
++     the operator= 
++     here below will automatically free the memory in 
++     MyImage before doing the =
++  */
++  MyImage=Image(w,h,ch);
++  MyImage.Clear();
++  ImageLoaded=1;
++}
++
++
+ void Do_Save(int argc, const char *argv[])
+ {
++ if (NoImage())
++      return;
+     if (argc > 0) {
+ 	delete File;
+ 	File = new char[strlen(argv[0])+1];
+@@ -307,15 +366,93 @@ void Do_Save(int argc, const char *argv[
+     MyImage.Export(File);
+ }
+ 
++
++void Do_Quantize(int argc, const char *argv[])
++{
++ if (NoImage())
++      return;
++
++  if (argc >= MyImage.GetChannels()) { 
++    for (u_int ch = 0; ch < MyImage.GetChannels(); ch++) {
++      int levels=(int)atof(argv[ch]); 
++      if (levels <= 0) {
++	fputs("Specify positive number\n", stderr);
++	return;
++      }
++      for (u_int r = 0; r < MyImage[ch]->GetRows(); r++)
++	for (u_int c = 0; c < MyImage[ch]->GetCols(); c++)
++	  {
++	    (*MyImage[ch])(c, r) = 
++	      levels * (s16)rint ( (*MyImage[ch])(c, r) /levels  )  ;
++	  }
++    }
++  }
++  else
++    {
++      fputs("Specify number(s) for quantization of channels\n", stderr);
++      return;
++    }
++}
++
++#ifdef COMPRESS
++#include "sol/Compress.H"
++
++void Do_Compress(int argc, const char *argv[])
++{
++  int q=1;
++  if (NoImage())
++    return;
++  
++  if (argc <= 0) {
++    fputs("Specify file and quantization\n", stderr);
++    return;
++  }
++
++  delete File;
++  File = new char[strlen(argv[0])+1];
++  strcpy(File, argv[0]);
++
++  if (argc>1)
++    q=(int)atof(argv[1]);
++
++  Compress(&MyImage,File,q);
++}
++
++void Do_Decompress(int argc, const char *argv[])
++{
++ 
++  if (argc <= 0) {
++    fputs("Specify file\n", stderr);
++    return;
++  }
++  
++  delete File;
++  File = new char[strlen(argv[0])+1];
++  strcpy(File, argv[0]);
++
++
++  /* DONT DO THIS : 
++     if(ImageLoaded)   MyImage.~Image();
++     the operator= 
++     here below will automatically free the memory in 
++     MyImage before doing the =
++  */
++    
++  Decompress(File,&  MyImage);
++  ImageLoaded=1;
++}
++#endif
++
+ void Do_View(int, const char **)
+ {
+-    char command[32];
++  /* WHO THE HELL MADE THIS STRING SIZE =32!!!!! I LOST 3 DAYS ON THIS!!!*/
++    char command[512];
+     if (NoImage())
+-	return;
+-
++      return;
++    
+     const char *filename = TmpFileName();
+     MyImage.Export(filename);
+-    sprintf(command, "xv %s &", filename);
++    sprintf(command, "if which xv >/dev/null ; then xv %s & else display %s & fi", filename,filename);
+     system(command);
+ }
+ 
+@@ -530,7 +667,7 @@ void Do_Psnr(int, const char **)
+     }
+ 
+     for (u_int ch = 0; ch < MyImage.GetChannels(); ch++)
+-	printf("Channel %d: %f dB\n", ch, MyImage[ch]->Psnr(*(*Backup)[ch]));
++	printf("Channel %d: %g dB\n", ch, MyImage[ch]->Psnr(*(*Backup)[ch]));
+ }
+ 
+ void Do_Threshold(int argc, const char *argv[])
+@@ -601,7 +738,7 @@ void Do_Histogram(int argc, const char *
+     Channel *channel = MyImage[ch];
+     if (level == 0) {
+ 	if (subband != SubBand_LL) {
+-	    fputs("Subband must be 0 for this level\n", stderr);
++	    fprintf(stderr,"Subband must be %d for this level\n",SubBand_LL );
+ 	    return;
+ 	}
+     } else {
+@@ -646,7 +783,7 @@ void Do_Histogram(int argc, const char *
+     stream.Printf("plot [%d:%d]\"%s\" title \"Level %d Subband %d [%d:%d]\" "
+ 		  "with impulses\n",
+ 		  min, max, plotdata, level, subband, min, max);
+-    stream.Puts("pause -1\n");
++    stream.Puts("pause 120\n");
+     stream.Close();
+     char command[160];
+     sprintf(command, "xterm -iconic -ut -T gnuplot -e gnuplot -name \"Level "
+@@ -665,16 +802,29 @@ void Do_Entropy(int, const char **)
+ 
+ static bool is_yuv = false;
+ 
++void Do_RGB(int, const char **)
++{
++    if (NoImage())
++	return;
++
++    if (is_yuv)
++      { MyImage.Convert(IT_RGB, IT_YUVr);     is_yuv = false; }
++    else
++      printf("Image is already rgb\n");
++}
++
+ void Do_YUV(int, const char **)
+ {
+     if (NoImage())
+ 	return;
+ 
+     if (is_yuv)
+-	MyImage.Convert(IT_RGB, IT_YUVr);
++      printf("Image is already yuv\n");
+     else
++      {
+ 	MyImage.Convert(IT_YUVr, IT_RGB);
+-    is_yuv = !is_yuv;
++	is_yuv = !false;
++      }
+ }
+ 
+ const struct Command Commands[] = {
+@@ -684,6 +834,7 @@ const struct Command Commands[] = {
+     { "exit", Do_Quit },
+     { "x", Do_Quit },
+     { "load", Do_Load },
++    { "new",  Do_New },
+     { "save", Do_Save },
+     { "view", Do_View },
+     { "wavelet", Do_Wavelet },
+@@ -699,6 +850,14 @@ const struct Command Commands[] = {
+     { "histogram", Do_Histogram },
+     { "entropy", Do_Entropy },
+     { "yuv", Do_YUV },
++    { "rgb", Do_RGB },
++    { "quantize", Do_Quantize}
++
++#ifdef COMPRESS
++    ,
++    { "compress", Do_Compress },
++    { "decompress", Do_Decompress }
++#endif
+ };
+ 
+ 
+@@ -717,17 +876,66 @@ static void ParseCommandLine(char *line)
+     DeleteArgs(argc, argv);
+ }
+ 
+-
++#include <sys/ioctl.h>
++#include <sys/termios.h>
++#include "readline/readline.h"
++#include "readline/history.h"
+ int main(void)
+ {
+-    char *line;
++    char *line=NULL;
++    char prompt=1;
++    struct termios ti;
++
++    srand48(1);
++
++    if( ioctl(0, TCGETS, &ti))
++      prompt=0;
++
++#ifdef RL_READLINE_VERSION
++    if(prompt) {
++      using_history ();
++      read_history (".wailiDemo_history");
++    }
++#endif
++
++    if(prompt)
++      fputs("Please enter your commands (`help' for help)\n\n", stdout);
+ 
+-    fputs("Please enter your commands (`help' for help)\n\n", stderr);
++    /* main interactive loop */
+     do {
+-	fprintf(stderr, "demo> ");
+-	line = ReadCommandLine();
+-	ParseCommandLine(line);
+-    } while (!ExitFlag);
++#ifdef RL_READLINE_VERSION
++      if(prompt) {
++	line = readline("demo> ");
++	if (line && line[0]) 
++	  add_history (line);
++      }
++      else {
++	line=(char *)calloc( MAX_CMD_LINE,1);
++	fgets(line, MAX_CMD_LINE, stdin);
++      }
++#else
++      if(prompt) 
++        fprintf(stdout, "demo> ");       
++      line=(char *)calloc( MAX_CMD_LINE,1);
++      fgets(line, MAX_CMD_LINE, stdin);
++#endif      
++      if(line && line[0]) {
++	int l=strlen(line);
++	char *tok; char *stringp=line;
++	if (line[l-1]=='\n')
++	  line[l-1]=0;
++	do {
++	  tok=strsep(&stringp,";");
++	  ParseCommandLine(tok);
++	} while (stringp);
++	  
++      }
++      free(line);
++    } while (!ExitFlag && line);
+     CleanUp();
++#ifdef RL_READLINE_VERSION
++    if(prompt)
++      write_history (".wailiDemo_history");
++#endif
+     exit(0);
+ }
+--- waili-19990723.orig/test/Example.C
++++ waili-19990723/test/Example.C
+@@ -39,7 +39,7 @@ int main(void)
+     // Transform the image using the Cohen-Daubechies-Feauveau
+     // (2, 2) biorthogonal wavelets
+     Wavelet *wavelet = Wavelet::CreateCDF(2, 2);
+-    u8 id = wavelet->GetID();
++    Wavelet_ID id = wavelet->GetID();
+     delete wavelet;
+     TransformDescriptor transform[] = {
+ 	{ TT_ColsRows, id },
+--- waili-19990723.orig/test/Test.C
++++ waili-19990723/test/Test.C
+@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
+     im1.Import(infile);
+     im2 = im1.Clone();
+     Wavelet *wavelet = Wavelet::CreateCDF(np, nd);
+-    u8 id = wavelet->GetID();
++    Wavelet_ID id = wavelet->GetID();
+     delete wavelet;
+     channels = im1.GetChannels();
+     printf("%dx%dx%d picture\n", im1.GetCols(0), im1.GetRows(0), channels);
+--- waili-19990723.orig/test/Makefile
++++ waili-19990723/test/Makefile
+@@ -28,31 +28,39 @@ ALL =		Example Demo Proof Rangecheck Tes
+ All:		$(ALL)
+ 
+ Example:	Example.o $(DEPLIBS)
+-		$(CXX) -o Example Example.o $(LFLAGS)
++		$(LIBTOOLLD) $(CXX) -o Example Example.o $(LFLAGS)
+ 
+ Demo:		Demo.o $(DEPLIBS)
+-		$(CXX) -o Demo Demo.o $(LFLAGS)
++		$(LIBTOOLLD) $(CXX) -lreadline -o Demo Demo.o $(LFLAGS)
+ 
+ Proof:		Proof.o $(DEPLIBS)
+-		$(CXX) -o Proof Proof.o $(LFLAGS)
++		$(LIBTOOLLD) $(CXX) -o Proof Proof.o $(LFLAGS)
+ 
+ Test:		Test.o $(DEPLIBS)
+-		$(CXX) -o Test Test.o $(LFLAGS)
++		$(LIBTOOLLD) $(CXX) -o Test Test.o $(LFLAGS)
+ 
+ Rangecheck:	Rangecheck.o $(DEPLIBS)
+-		$(CXX) -o Rangecheck Rangecheck.o $(LFLAGS)
++		$(LIBTOOLLD) $(CXX) -o Rangecheck Rangecheck.o $(LFLAGS)
+ 
+ Histogram:	Histogram.o $(DEPLIBS)
+-		$(CXX) -o Histogram Histogram.o $(LFLAGS)
++		$(LIBTOOLLD) $(CXX) -o Histogram Histogram.o $(LFLAGS)
+ 
+ 
+-depend:
+-		rm -f .depend
+-		$(CXX) $(CFLAGS) -M -E *.C > .depend
++depend: $(ALL:=.d)
++
++include $(ALL:=.d)
++
+ 
+ clean:
+-		rm -f .depend *.o $(ALL) result.pgm out.pgm out.ppm reco.pgm \
+-		reco.ppm
++		rm -f .depend *.o *.d $(ALL) .wailiDemo_history \
++			result.pgm out.pgm out.ppm reco.pgm reco.ppm 
++		rm -rf .libs
++		rm -f *.lo
+ 
+ 
+ include ../Rules.make
++
++#added for Debian
++install:
++	$(INSTALL) -d $(DESTDIR)$(PREFIX)/lib/$(PACKAGE)/test/
++	$(LIBTOOLINSTALL) $(INSTALL)  $(ALL) $(DESTDIR)$(PREFIX)/lib/$(PACKAGE)/test/
+--- waili-19990723.orig/lib/LChannel.C
++++ waili-19990723/lib/LChannel.C
+@@ -20,12 +20,13 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Channel.h>
++
+ #include <stdio.h>
+-#include <stream.h>
++#include <iostream>
+ #include <math.h>
+ 
+-#include <waili/Util.h>
++#include "waili/Channel.h"
++#include "waili/Util.h"
+ 
+ 
+ const char *LChannel::rcsid = "$Id: LChannel.C,v 4.5.2.2.2.1 1999/07/20 16:15:49 geert Exp $";
+--- waili-19990723.orig/lib/Wavelet_CDF_1_x.C
++++ waili-19990723/lib/Wavelet_CDF_1_x.C
+@@ -22,8 +22,8 @@
+ //  $Id: Wavelet_CDF_1_x.C,v 4.1.4.1 1999/07/20 16:15:52 geert Exp $
+ //
+ 
+-#include <waili/Util.h>
+-#include <waili/Channel.h>
++#include "waili/Util.h"
++#include "waili/Channel.h"
+ 
+ 
+ const char *Wavelet_CDF_1_x::rcsid = "$Id: Wavelet_CDF_1_x.C,v 4.1.4.1 1999/07/20 16:15:52 geert Exp $";
+--- /dev/null
++++ waili-19990723/lib/myLifting.C
+@@ -0,0 +1,79 @@
++
++#include "waili/Channel.h"
++#include "waili/Util.h"
++
++
++#define XOR(A,B) ((( (A) +128) ^ ( (B) +128)) -128)
++
++void LiftChannelR::Lift_bin(int type ) const
++{
++  PixType *even = Even,   *odd = Odd, b;
++  
++  for (u_int i = 0; i < Rows; i++) {    
++    if( 1 ) {
++      for (u_int j = 0; j < Codd; j++) {
++	//even[j] = even[j]  ;
++	odd[j] = XOR(even[j], odd[j]) ;
++      }
++    } else {
++      for (u_int j = 0; j < Codd; j++) {
++	b=XOR(even[j],  odd[j]);
++	even[j] = odd[j] ;
++	odd[j] =b;
++      }}
++     
++    even += Ceven;
++    odd += Codd;
++  }
++}
++
++
++
++void LiftChannelR::ILift_bin(int type ) const
++{
++  PixType *even = Even, b;
++  PixType *odd = Odd;
++  
++  for (u_int i = 0; i < Rows; i++) {    
++    if( 1 ) {
++      for (u_int j = 0; j < Codd; j++) {  
++	//odd[j] = even[j]  ^ odd[j] ;
++	odd[j] = XOR(even[j], odd[j]) ;
++      }} else {
++	for (u_int j = 0; j < Codd; j++) {
++	  b=XOR(even[j], odd[j]) ;
++	  odd[j] = even[j] ;
++	  even[j] = b;
++	}}
++    even += Ceven;
++    odd += Codd;
++  }
++}
++
++void LiftChannelC::Lift_bin(int type ) const
++{
++  PixType *even = Even;
++  PixType *odd = Odd;
++  
++  for (u_int i = 0; i < Rodd; i++) {    
++    for (u_int j = 0; j < Cols; j++)
++      odd[j] = XOR(even[j], odd[j]) ; 
++    even += Cols;
++    odd += Cols;
++  }
++}
++
++void LiftChannelC::ILift_bin(int type ) const
++{
++  PixType *even = Even;
++  PixType *odd = Odd;
++  
++  for (u_int i = 0; i < Rodd; i++) {    
++    for (u_int j = 0; j < Cols; j++)
++      odd[j] = XOR(even[j], odd[j]) ;
++    even += Cols;
++    odd += Cols;
++  }
++}
++
++
+--- waili-19990723.orig/lib/LChannelR.C
++++ waili-19990723/lib/LChannelR.C
+@@ -20,12 +20,13 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Channel.h>
+-#include <waili/Util.h>
+ #include <stdio.h>
+-#include <stream.h>
++#include <iostream>
+ #include <math.h>
+ 
++#include "waili/Channel.h"
++#include "waili/Util.h"
++
+ 
+ const char *LChannelR::rcsid = "$Id: LChannelR.C,v 4.6.2.1.2.1 1999/07/20 16:15:51 geert Exp $";
+ 
+--- waili-19990723.orig/lib/Image.C
++++ waili-19990723/lib/Image.C
+@@ -22,13 +22,15 @@
+ 
+ #include <string.h>
+ 
+-#include <waili/Image.h>
+-#include <waili/Util.h>
+-#include <waili/Blit.h>
+-
+-#include <waili/Timer.h>
+-#include <waili/Storage.h>
+-#include <waili/Color.h>
++#include <fstream>
++
++#include "waili/Image.h"
++#include "waili/Util.h"
++#include "waili/Blit.h"
++
++#include "waili/Timer.h"
++#include "waili/Storage.h"
++#include "waili/Color.h"
+ 
+ #include <errno.h>
+ 
+@@ -43,7 +45,7 @@ const char *Image::rcsid = "$Id: Image.C
+ Image::Image(u_int cols, u_int rows, u_int channels)
+     : NumChannels(channels), Channels(NULL)
+ {
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     for (u_int ch = 0; ch < NumChannels; ch++)
+ 	Channels[ch] = new NTChannel(cols, rows);
+ }
+@@ -51,15 +53,15 @@ Image::Image(u_int cols, u_int rows, u_i
+ Image::Image(const u_int cols[], const u_int rows[], u_int channels)
+     : NumChannels(channels), Channels(NULL)
+ {
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     for (u_int ch = 0; ch < NumChannels; ch++)
+ 	Channels[ch] = new NTChannel(cols[ch], rows[ch]);
+ }
+ 
+-Image::Image(const Channel &channel, u_int channels = 1)
++Image::Image(const Channel &channel, u_int channels)
+     : NumChannels(channels), Channels(NULL)
+ {
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     for (u_int ch = 0; ch < NumChannels; ch++)
+ 	Channels[ch] = channel.Clone();
+ }
+@@ -67,7 +69,7 @@ Image::Image(const Channel &channel, u_i
+ Image::Image(const Channel *channel[], u_int channels)
+     : NumChannels(channels), Channels(NULL)
+ {
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     for (u_int ch = 0; ch < NumChannels; ch++)
+ 	Channels[ch] = channel[ch]->Clone();
+ }
+@@ -75,7 +77,7 @@ Image::Image(const Channel *channel[], u
+ Image::Image(const Image &im)
+     : NumChannels(im.NumChannels), Channels(NULL)
+ {
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     for (u_int ch = 0; ch < NumChannels; ch++)
+ 	Channels[ch] = im.Channels[ch]->Clone();
+ }
+@@ -84,7 +86,7 @@ Image::Image(u_int cols, u_int rows, con
+ 	     u_int depth, u_int channels)
+     : NumChannels(channels), Channels(NULL)
+ {
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     for (u_int ch = 0; ch < NumChannels; ch++)
+ 	Channels[ch] = Channel::CreateFromDescriptor(cols, rows, transform,
+ 						     depth);
+@@ -165,8 +167,8 @@ void Image::Export(const char *filename,
+ 
+     //  Static Routines
+ 
+-static u8 GetRealChar(Stream &stream);
+-static u_int GetNumber(Stream &stream);
++//static u8 GetRealChar(std::ifstream &stream);
++//static u_int GetNumber(std::ifstream &stream);
+ 
+ 
+     //  Import an Image from a File in the PNM (PGM or PPM) Format
+@@ -174,16 +176,17 @@ static u_int GetNumber(Stream &stream);
+ ImageType Image::ImportPNM(const char *filename)
+ {
+     ImageType res;
+-    Stream stream(filename, "r");
++    std::ifstream stream(filename, std::ios::in | std::ios::binary);
+     u_int cols, rows, channels;
+     u_int c, r, ch;
+-    u8 d, magic;
++    unsigned char d, magic;
+     int raw = 0;
+-
+-    stream.Read(magic);
+-    if (magic != 'P')
+-	Die("%s: Not a PNM file\n", __FUNCTION__);
+-    stream.Read(magic);
++    char str[256];
++        
++    stream.getline(str,5);
++    if (str[0] != 'P')
++	Die("%s: Not a PNM file, magic is '%c' \n", __FUNCTION__,str[0]);
++    magic=str[1];
+     switch (magic) {
+ 	case '1':	// PBM ASCII
+ 	case '4':	// PBM Raw
+@@ -208,22 +211,33 @@ ImageType Image::ImportPNM(const char *f
+ 	    Die("%s: Not a PNM file\n", __FUNCTION__);
+ 	    break;
+     }
+-    cols = GetNumber(stream);
+-    rows = GetNumber(stream);
+-    GetNumber(stream);
++    stream.getline(str,255);
++    while(str[0]=='#' || str[0] == '\n' )
++      stream.getline(str,255);
++
++    sscanf(str,"%d %d",	&cols,   &rows);
++
++    stream.getline(str,255);
++    while(str[0]=='#' || str[0] == '\n' )
++      stream.getline(str,255);
++
++    if ( strcmp(str,"255") &&  strcmp(str,"255\n") )
++      Die("%s: PNM file has '%s' != '255' \n", __FUNCTION__,str);
++
+     Resize(cols, rows, channels);
+     if (raw)
+ 	for (r = 0; r < rows; r++)
+ 	    for (c = 0; c < cols; c++)
+ 		for (ch = 0; ch < channels; ch++) {
+-		    stream.Read(d);
++		  d=stream.get();
+ 		    (*this)(c, r, ch) = (PixType)(d-128);
+ 		}
+     else
+-	for (r = 0; r < rows; r++)
+-	    for (c = 0; c < cols; c++)
+-		for (ch = 0; ch < channels; ch++)
+-		    (*this)(c, r, ch) = (PixType)(GetNumber(stream)-128);
++      Die(" ascii PNM not implemented");
++    //	for (r = 0; r < rows; r++)
++    //	    for (c = 0; c < cols; c++)
++    //		for (ch = 0; ch < channels; ch++)
++    //		    (*this)(c, r, ch) = (PixType)(GetNumber(stream)-128);
+     return(res);
+ }
+ 
+@@ -380,8 +394,8 @@ ImageType Image::ImportTIFF(const char *
+ 
+ void Image::ExportPNM(const char *filename, int raw)
+ {
+-    Stream stream(filename, "w");
+-    u8 magic, d;
++    std::fstream stream(filename, std::ios::binary | std::ios::out);
++    unsigned char magic, d;
+     PixType val;
+     u_int cols = GetCols(0);
+     u_int rows = GetRows(0);
+@@ -406,9 +420,8 @@ void Image::ExportPNM(const char *filena
+     if (raw)
+ 	magic += 3;
+ 
+-    stream.Printf("P%c\n%d %d\n255", magic, cols, rows);
++    stream << 'P' << magic << "\n" << cols << ' ' << rows << "\n255\n";
+     if (raw) {
+-	stream.Write((u8)'\n');
+ 	for (u_int r = 0; r < rows; r++)
+ 	    for (u_int c = 0; c < cols; c++)
+ 		for (u_int ch = 0; ch < channels; ch++) {
+@@ -419,7 +432,7 @@ void Image::ExportPNM(const char *filena
+ 			d = 255;
+ 		    else
+ 			d = (u8)val;
+-		    stream.Write(d);
++		    stream << d;
+ 		}
+     } else {
+ 	u_int l = 70;
+@@ -434,13 +447,13 @@ void Image::ExportPNM(const char *filena
+ 		    else
+ 			d = (u8)val;
+ 		    l += 4;
++		    stream <<  (u_int)d;
+ 		    if (l >= 70) {
+-			stream.Printf("\n%4d", (u_int)d);
++		      stream << "\n";
+ 			l = 3;
+-		    } else
+-			stream.Printf(" %4d", (u_int)d);
++		    }
+ 		}
+-	stream.Write((u8)'\n');
++	stream << '\n';
+     }
+ }
+ 
+@@ -719,42 +732,42 @@ conversion_not_supported:
+ }
+ 
+ 
+-    //  Read the Next Character from a PNM File and Care about Comments
++//     //  Read the Next Character from a PNM File and Care about Comments
+ 
+-static u8 GetRealChar(Stream &stream)
+-{
+-    u8 c;
+-
+-    for (stream.Read(c); c == '#'; stream.Read(c))
+-	do
+-	    stream.Read(c);
+-	while (c != '\n');
+-    return(c);
+-}
+-
+-
+-    //  Skip Leading Whitespace and Read an ASCII Number from a PNM File
+-
+-static u_int GetNumber(Stream &stream)
+-{
+-    u_int value = 0;
+-    u8 c;
+-
+-    do
+-	c = GetRealChar(stream);
+-    while ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'));
+-    while (1) {
+-	if ((c >= '0') && (c <= '9')) {
+-	    value = 10*value+(c-'0');
+-	    c = GetRealChar(stream);
+-	    continue;
+-	}
+-	if ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
+-	    break;
+-	Die("%s: Not a number\n", __FUNCTION__);
+-    }
+-    return(value);
+-}
++// static u8 GetRealChar(std::ifstream &stream)
++// {
++//     unsigned int c;
++
++//     for (c=stream.get(); c == '#'; )
++// 	do
++// 	  c=stream.get();
++// 	while (c != '\n');
++//     return(c);
++// }
++
++
++//     //  Skip Leading Whitespace and Read an ASCII Number from a PNM File
++
++// static u_int GetNumber(std::ifstream &stream)
++// {
++//     u_int value = 0;
++//     u8 c;
++
++//     do
++// 	c = GetRealChar(stream);
++//     while ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'));
++//     while (1) {
++// 	if ((c >= '0') && (c <= '9')) {
++// 	    value = 10*value+(c-'0');
++// 	    c = GetRealChar(stream);
++// 	    continue;
++// 	}
++// 	if ((c == ' ') || (c == '\t') || (c == '\r') || (c == '\n'))
++// 	    break;
++// 	Die("%s: Not a number\n", __FUNCTION__);
++//     }
++//     return(value);
++// }
+ 
+ 
+ // ---------------------------------------------------------------------------
+@@ -769,7 +782,7 @@ void Image::Resize(u_int cols, u_int row
+ 	delete Channels[ch];
+     delete[] Channels;
+     NumChannels = channels;
+-    Channels = new (Channel *)[NumChannels];
++    Channels = new Channel *[NumChannels];
+     for (u_int ch = 0; ch < NumChannels; ch++)
+ 	Channels[ch] = new NTChannel(cols, rows);
+ }
+@@ -781,7 +794,7 @@ Image& Image::operator=(const Image &im)
+ 	    delete Channels[ch];
+ 	delete[] Channels;
+ 	NumChannels = im.NumChannels;
+-	Channels = new (Channel *)[NumChannels];
++	Channels = new Channel *[NumChannels];
+ 	for (u_int ch = 0; ch < NumChannels; ch++)
+ 	    Channels[ch] = im[ch]->Clone();
+     }
+@@ -790,7 +803,7 @@ Image& Image::operator=(const Image &im)
+ 
+ void Image::InsertChannel(const Channel &data, u_int channel)
+ {
+-    Channel **newChannels = new (Channel *)[++NumChannels];
++    Channel **newChannels = new Channel *[++NumChannels];
+     for (u_int ch = 0; ch < channel; ch++)
+ 	newChannels[ch] = Channels[ch];
+     for (u_int ch = channel+1; ch < NumChannels; ch++)
+@@ -802,7 +815,7 @@ void Image::InsertChannel(const Channel
+ 
+ void Image::DeleteChannel(u_int channel)
+ {
+-    Channel **newChannels = new (Channel *)[--NumChannels];
++    Channel **newChannels = new Channel *[--NumChannels];
+     for (u_int ch = 0; ch < channel; ch++)
+ 	newChannels[ch] = Channels[ch];
+     for (u_int ch = channel; ch < NumChannels; ch++)
+--- waili-19990723.orig/lib/Color.C
++++ waili-19990723/lib/Color.C
+@@ -22,8 +22,8 @@
+ 
+ #include <math.h>
+ 
+-#include <waili/Color.h>
+-#include <waili/Util.h>
++#include "waili/Color.h"
++#include "waili/Util.h"
+ 
+ 
+ const char *ColorSpace::rcsid = "$Id: Color.C,v 4.0.2.1.2.1 1999/07/20 16:15:49 geert Exp $";
+--- waili-19990723.orig/lib/Channel.C
++++ waili-19990723/lib/Channel.C
+@@ -20,11 +20,14 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Channel.h>
++#include "waili/Channel.h"
+ #include <stdio.h>
+-#include <iostream.h>
++#include <iostream>
+ #include <math.h>
+ 
++/* needed on  Debian > 2.2 */
++#include <float.h>
++
+ 
+ const char *Channel::rcsid = "$Id: Channel.C,v 4.4.2.2.2.1 1999/07/20 16:15:49 geert Exp $";
+ 
+@@ -75,17 +78,26 @@ double Channel::Psnr(const Channel &chan
+     if (Cols != channel.GetCols() || Rows != channel.GetRows())
+ 	return(-DBL_MAX);
+ 
++    double mse=MSE(channel);
++    if (mse == 0)
++	return(DBL_MAX);
++    double rmse=sqrt(mse);
++    double psnr = 20.0*log10(maxval/rmse);
++    return(psnr);
++}
++
++double Channel::MSE(const Channel &channel) const
++{
++    if (Cols != channel.GetCols() || Rows != channel.GetRows())
++	return(-1);
++
+     u64 ss = 0;
+     for (u_int r = 0; r < Rows; r++)
+ 	for (u_int c = 0; c < Cols; c++) {
+ 	    int d = (*this)(c, r)-channel(c, r);
+ 	    ss += d*d;
+ 	}
+-    if (ss == 0)
+-	return(DBL_MAX);
+-    double rmse = sqrt((double)ss/(double)(Cols*Rows));
+-    double psnr = 20.0*log10(maxval/rmse);
+-    return(psnr);
++    return ((double)ss/(double)(Cols*Rows));
+ }
+ 
+ double Channel::Entropy(void) const
+--- /dev/null
++++ waili-19990723/lib/Wavelet_bin.C
+@@ -0,0 +1,27 @@
++
++
++#include <math.h>
++#include <limits.h>
++
++#include "waili/Lifting.h"
++#include "waili/Wavelet.h"
++
++void Wavelet_Binary::CakeWalk(Lifting &lifting) const
++{
++  lifting.Lift_bin(0);
++}
++
++void Wavelet_Binary::ICakeWalk(Lifting &lifting) const
++{
++  lifting.ILift_bin(0);
++}
++
++Wavelet_Binary::Wavelet_Binary()
++{
++
++}
++
++Wavelet_Binary *Wavelet_Binary::Clone(void) const
++{
++    return(new Wavelet_Binary(*this));
++}
+--- waili-19990723.orig/lib/Storage.C
++++ waili-19990723/lib/Storage.C
+@@ -22,12 +22,19 @@
+ 
+ #include <stdarg.h>
+ #include <errno.h>
++
++#ifdef __WIN32__
++#include "winsock.h"
++#else
+ #include <netinet/in.h>
++#endif
+ 
+-#include <waili/Util.h>
+-#include <waili/Storage.h>
++#include <sys/param.h>
+ 
+ 
++#include "waili/Storage.h"
++#include "waili/Util.h"
++
+ const char *Stream::rcsid = "$Id: Storage.C,v 4.0.2.2.2.1 1999/07/20 16:15:52 geert Exp $";
+ 
+ 
+@@ -144,6 +151,9 @@ void Stream::Printf(const char *fmt, ...
+ 
+     //  Endianness-aware Routines
+ 
++
++
++
+ #if defined(BYTE_ORDER) && defined(BIG_ENDIAN) && defined(LITTLE_ENDIAN)
+     #if BYTE_ORDER == BIG_ENDIAN
+ 	#define WAILI_BIG_ENDIAN
+@@ -154,6 +164,7 @@ void Stream::Printf(const char *fmt, ...
+     #define WAILI_BIG_ENDIAN
+ #elif defined(__LITTLE_ENDIAN) || defined(_LITTLE_ENDIAN)
+     #define WAILI_LITTLE_ENDIAN
++
+ #endif
+ #if !defined(WAILI_BIG_ENDIAN) && !defined(WAILI_LITTLE_ENDIAN)
+ #error Please fix me
+--- waili-19990723.orig/lib/Wavelet_CDF_2_x.C
++++ waili-19990723/lib/Wavelet_CDF_2_x.C
+@@ -22,8 +22,8 @@
+ //  $Id: Wavelet_CDF_2_x.C,v 4.2.2.1.2.1 1999/07/20 16:15:52 geert Exp $
+ //
+ 
+-#include <waili/Util.h>
+-#include <waili/Channel.h>
++#include "waili/Util.h"
++#include "waili/Channel.h"
+ 
+ 
+ const char *Wavelet_CDF_2_x::rcsid = "$Id: Wavelet_CDF_2_x.C,v 4.2.2.1.2.1 1999/07/20 16:15:52 geert Exp $";
+--- waili-19990723.orig/lib/LChannelCR.C
++++ waili-19990723/lib/LChannelCR.C
+@@ -20,12 +20,14 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Channel.h>
+-#include <waili/Util.h>
+ #include <stdio.h>
+-#include <stream.h>
++#include <iostream>
+ #include <math.h>
+ 
++#include "waili/Channel.h"
++#include "waili/Util.h"
++
++
+ 
+ const char *LChannelCR::rcsid = "$Id: LChannelCR.C,v 4.6.2.1.2.1 1999/07/20 16:15:50 geert Exp $";
+ 
+--- waili-19990723.orig/lib/Wavelet_CDF_4_x.C
++++ waili-19990723/lib/Wavelet_CDF_4_x.C
+@@ -22,8 +22,8 @@
+ //  $Id: Wavelet_CDF_4_x.C,v 4.2.2.1.2.1 1999/07/20 16:15:52 geert Exp $
+ //
+ 
+-#include <waili/Util.h>
+-#include <waili/Channel.h>
++#include "waili/Util.h"
++#include "waili/Channel.h"
+ 
+ 
+ const char *Wavelet_CDF_4_x::rcsid = "$Id: Wavelet_CDF_4_x.C,v 4.2.2.1.2.1 1999/07/20 16:15:52 geert Exp $";
+--- waili-19990723.orig/lib/Wavelet_JPEG2000.C
++++ waili-19990723/lib/Wavelet_JPEG2000.C
+@@ -22,7 +22,7 @@
+ //  $Id: Wavelet_JPEG2000.C,v 5.1.2.1.2.1 1999/07/20 16:15:53 geert Exp $
+ //
+ 
+-#include <waili/Wavelet.h>
++#include "waili/Wavelet.h"
+ 
+ 
+     //  Biorthogonal CRF (13, 7)
+--- waili-19990723.orig/lib/Wavelet.C
++++ waili-19990723/lib/Wavelet.C
+@@ -20,8 +20,8 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Util.h>
+-#include <waili/Channel.h>
++#include "waili/Util.h"
++#include "waili/Channel.h"
+ 
+ 
+ //
+@@ -483,7 +483,7 @@ Wavelet *Wavelet::CreateCDF(u_int np, u_
+ 
+     //  Create a Wavelet from an ID
+ 
+-Wavelet *Wavelet::CreateFromID(u8 id)
++Wavelet *Wavelet::CreateFromID(Wavelet_ID id)
+ {
+     switch (id) {
+ 	case ID_CDF_1_1:
+--- waili-19990723.orig/lib/Util.C
++++ waili-19990723/lib/Util.C
+@@ -23,21 +23,32 @@
+ #include <stdarg.h>
+ #include <stdio.h>
+ #include <stdlib.h>
++#include <string.h>
+ 
+-#include <waili/Types.h>
+-#include <waili/Util.h>
++#include "waili/Types.h"
++#include "waili/Util.h"
+ 
++#include "exception"
+ 
+     //  Program Failure
+ 
++static char ERRSTR[512];
++
+ void Die(const char *fmt, ...)
+ {
++    ERRSTR[0]=0;
++    
+     va_list args;
+-
++  
+     va_start(args, fmt);
+-    vfprintf(stderr, fmt, args);
++    vsnprintf(ERRSTR+strlen(ERRSTR), 512, fmt, args);
+     va_end(args);
+-    exit(1);
++    fprintf(stderr,ERRSTR);
++    //exception e;//=new exception();
++    //e->what=ERRSTR;
++    char *e=ERRSTR;
++    throw e;
++    
+ }
+ 
+ 
+--- /dev/null
++++ waili-19990723/lib/myLifting.C,v
+@@ -0,0 +1,99 @@
++head	1.1;
++access;
++symbols;
++locks
++	andrea:1.1; strict;
++comment	@ * @;
++
++
++1.1
++date	2001.09.16.20.24.12;	author andrea;	state Exp;
++branches;
++next	;
++
++
++desc
++@@
++
++
++1.1
++log
++@Initial revision
++@
++text
++@
++
++void LiftChannelR::Lift_bin(int type ) const
++{
++  PixType *even = Even,   *odd = Odd, b;
++  
++  for (u_int i = 0; i < Rows; i++) {    
++    if( i & 1 ) {
++      for (u_int j = 0; j < Codd; j++) {
++	//even[j] = even[j]  ;
++	odd[j] = even[j]  ^ odd[j] ;
++      }
++    } else {
++      for (u_int j = 0; j < Codd; j++) {
++	b=even[j]  ^  odd[j];
++	even[j] = odd[j] ;
++	odd[j] =b;
++      }}
++     
++    even += Ceven;
++    odd += Codd;
++  }
++}
++
++
++
++void LiftChannelR::ILift_bin(int type ) const
++{
++  PixType *even = Even, b;
++  PixType *odd = Odd;
++  
++  for (u_int i = 0; i < Rows; i++) {    
++    if( i & 1 ) {
++      for (u_int j = 0; j < Codd; j++) {  
++	odd[j] = even[j]  ^ odd[j] ;
++      }} else {
++	for (u_int j = 0; j < Codd; j++) {
++	  b=even[j]  ^  odd[j]; 
++	  odd[j] = even[j] ;
++	  even[j] = b;
++	}}
++    even += Ceven;
++    odd += Codd;
++  }
++}
++
++void LiftChannelC::Lift_bin(int type ) const
++{
++  PixType *even = Even;
++  PixType *odd = Odd;
++  
++  for (u_int i = 0; i < Rodd; i++) {    
++    for (u_int j = 0; j < Cols; j++)
++      odd[j] = 64 * ( (even[j] >0) ^ (odd[j] >0));
++    for (u_int j = 0; j < Cols; j++)
++      even[j] = 64 * ( (even[j] >0) );
++    even += Cols;
++    odd += Cols;
++  }
++}
++
++void LiftChannelC::ILift_bin(int type ) const
++{
++  PixType *even = Even;
++  PixType *odd = Odd;
++  
++  for (u_int i = 0; i < Rodd; i++) {    
++    for (u_int j = 0; j < Cols; j++)
++      odd[j] = 64 * ( (even[j] >0) ^ (odd[j] >0));
++    even += Cols;
++    odd += Cols;
++  }
++}
++
++
++@
+--- waili-19990723.orig/lib/NTChannel.C
++++ waili-19990723/lib/NTChannel.C
+@@ -20,12 +20,13 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Channel.h>
+-#include <waili/Util.h>
+ #include <stdio.h>
+-#include <stream.h>
++#include <iostream>
+ #include <math.h>
+ 
++#include "waili/Channel.h"
++#include "waili/Util.h"
++
+ 
+ const char *NTChannel::rcsid = "$Id: NTChannel.C,v 4.12.2.3.2.1 1999/07/20 16:15:51 geert Exp $";
+ 
+@@ -163,8 +164,10 @@ s32 *NTChannel::Correlate(const NTChanne
+ void NTChannel::Enhance(f32 m)
+ {
+     for (u_int r = 0; r < Rows; r++)
+-       for (u_int c = 0; c < Cols; c++)
+-	   (*this)(c, r) = PixType(m*(*this)(c, r));
++      for (u_int c = 0; c < Cols; c++) {
++	f32 v=(*this)(c, r);
++	(*this)(c, r) = PixType( floor(m*v+0.5) );
++      }
+ }
+ 
+ void NTChannel::Enhance(int m, u_int shift)
+@@ -391,7 +394,7 @@ void NTChannel::Destroy(void)
+     Cols = Rows = OffsetX = OffsetY = 0;
+ }
+ 
+-void NTChannel::GetMinMax(PixType &min, PixType &max, u_int smoothing = 0) const
++void NTChannel::GetMinMax(PixType &min, PixType &max, u_int smoothing) const
+ {
+     if (smoothing != 0)
+ 	Die("%s: Smoothing isn't implemented yet!\n", __FUNCTION__);
+--- waili-19990723.orig/lib/LChannelC.C
++++ waili-19990723/lib/LChannelC.C
+@@ -20,12 +20,13 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Channel.h>
+-#include <waili/Util.h>
+ #include <stdio.h>
+-#include <stream.h>
++#include <iostream>
+ #include <math.h>
+ 
++#include "waili/Channel.h"
++#include "waili/Util.h"
++
+ 
+ const char *LChannelC::rcsid = "$Id: LChannelC.C,v 4.6.2.1.2.1 1999/07/20 16:15:49 geert Exp $";
+ 
+--- /dev/null
++++ waili-19990723/lib/Wavelet_gain.C
+@@ -0,0 +1,66 @@
++
++#include "waili/Wavelet.h"
++#include "waili/Channel.h"
++#include <stdlib.h>
++
++double *wavelet_gaussian_variance_gain_by_type(u8  type)
++{ 
++  switch(type) {
++  case 100: 
++  case 101: 
++    { static double g[2]={ 0.647, 1.647  }; return g;}
++  case 1:
++  case 2:
++  case 3:
++    { static double g[2]={ 0.50, 2.00 };return g;}
++  case 4:
++  case 5:
++  case 6:
++    { static double g[2]={ 0.71, 1.50 };return g;}
++  case 7:
++    { static double g[2]={ 1.90, 4.43 };return g;}
++  case 8:
++  case 9:
++    { static double g[2]={ 1.63, 4.43 };return g;}
++  default: { abort(); static double g[2]={ 1.0, 1.0  }; return g;}
++  }
++}
++
++
++double *wavelet_gaussian_variance_gain(Channel *C)
++{  
++  TransformType  t= ((LChannel *)C)->GetTransformType();
++  TransformDescriptor *td=((LChannel *)C)->GetTransform();
++  //assert ( t == td->type);
++  double *gg=wavelet_gaussian_variance_gain_by_type(td->filter);
++  if ( t == TT_ColsRows) {
++    double *g=new double[4];
++    g[0]= gg[0] * gg[0]; g[1]=g[2]= (gg[0]*gg[1]); g[3]= gg[1] * gg[1];
++    return g;
++  } else { double *g=new double[4]; g[0]= gg[0]; g[1]=gg[1]; return g;}
++}
++
++double *wavelet_uniform_maximum_gain(int type)
++{ 
++  switch(type) {
++  case 100: //ID_CRF_13_7
++  case 101: //ID_SWE_13_7
++    {  static double g[2]={ 1.45, 2.2  }; return g;}
++  case 1://ID_CDF_1_1
++  case 2:// ID_CDF_1_
++  case 3://ID_CDF_1_5
++    {  static double g[2]={ 1.2, 2.0 };return g;}
++  case 4://ID_CDF_2_2 = 4
++  case 5://ID_CDF_2_4
++  case 6://ID_CDF_2_6
++    {  static double g[2]={ 1.5, 2.0 };return g;}
++  case 7://ID_CDF_4_2
++    {  static double g[2]={ 2.2, 3.8 };return g;}
++  case 8://ID_CDF_4_4
++  case 9://ID_CDF_4_6
++    {  static double g[2]={ 2.3, 3.8 };return g;}
++  default: {  static double g[2]={ 1.0, 1.0  }; return g;}
++  }
++}
++
++
+--- waili-19990723.orig/lib/Timer.C
++++ waili-19990723/lib/Timer.C
+@@ -24,11 +24,11 @@
+ #include <sys/times.h>
+ #include <assert.h>
+ 
+-#include <waili/Timer.h>
++#include "waili/Timer.h"
+ 
+ 
+-#if defined(sun) && !defined(CLK_TCK)	// SunOS
+-#define CLK_TCK	60
++#if defined(sun) && !defined(CLOCKS_PER_SEC)	// SunOS
++#define CLOCKS_PER_SEC	60
+ #endif
+ 
+ 
+@@ -100,7 +100,7 @@ f32 Timer::GetReal(void) const
+     } else
+ 	real = Real;
+ 
+-    return((f32)real/CLK_TCK);
++    return((f32)real/CLOCKS_PER_SEC);
+ }
+ 
+ 
+@@ -116,7 +116,7 @@ f32 Timer::GetUser(void) const
+     } else
+ 	user = User;
+ 
+-    return((f32)user/CLK_TCK);
++    return((f32)user/CLOCKS_PER_SEC);
+ }
+ 
+ 
+@@ -132,7 +132,7 @@ f32 Timer::GetSystem(void) const
+     } else
+ 	system = System;
+ 
+-    return((f32)system/CLK_TCK);
++    return((f32)system/CLOCKS_PER_SEC);
+ }
+ 
+ 
+@@ -175,8 +175,8 @@ void Timer::Toc(void)
+     t = GetStamp();
+ 
+     fprintf(stderr, "Real = %10.3f   User = %10.3f   System = %10.3f\n",
+-	      (f32)t.Real/CLK_TCK, (f32)t.User/CLK_TCK,
+-	      (f32)t.System/CLK_TCK);
++	      (f32)t.Real/CLOCKS_PER_SEC, (f32)t.User/CLOCKS_PER_SEC,
++	      (f32)t.System/CLOCKS_PER_SEC);
+ }
+ 
+ 
+--- waili-19990723.orig/lib/Lifting.C
++++ waili-19990723/lib/Lifting.C
+@@ -20,7 +20,8 @@
+ //  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ //
+ 
+-#include <waili/Channel.h>
++#include "waili/Channel.h"
++#include "waili/Util.h"
+ 
+ 
+ const char *Lifting::rcsid = "$Id: Lifting.C,v 4.5.2.1.2.1 1999/07/20 16:15:51 geert Exp $";

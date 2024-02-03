@@ -1,0 +1,15 @@
+Description:  FTBFS(kfreebsd): patch included
+Bug-Debian: http://bugs.debian.org/639201
+Author: Christoph Egger <christoph@debian.org>
+
+--- waili-19990723/test/Demo.C
++++ waili-19990723/test/Demo.C
+@@ -888,7 +888,7 @@
+ 
+     srand48(1);
+ 
+-    if( ioctl(0, TCGETS, &ti))
++    if( tcgetattr(0, &ti))
+       prompt=0;
+ 
+ #ifdef RL_READLINE_VERSION

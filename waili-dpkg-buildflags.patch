@@ -1,0 +1,36 @@
+Index: waili-19990723/config/Rules.Linux.g++
+===================================================================
+--- waili-19990723.orig/config/Rules.Linux.g++	2014-01-13 15:26:39.000000000 +0100
++++ waili-19990723/config/Rules.Linux.g++	2014-01-13 15:27:50.000000000 +0100
+@@ -39,8 +39,15 @@
+ CFLAGS =	-Wall $(TIFFINC) $(TIFFDEF) $(OPTFLAGS) $(DEBUGFLAGS)
+ CPPFLAGS =       -I$(TOPDIR)/include $(TIFFINC) $(TIFFDEF) 
+ 
++
+ #changed for debian: if -lwaili is specified, libtool fails to work
+ LFLAGS =	 -lm $(LIBWAILI) $(TIFFLIB)
+ AR =		ar
+ RANLIB =	ranlib
+ DEPLIBS =	$(LIBWAILI)
++
++#https://wiki.debian.org/HardeningWalkthrough
++CFLAGS += `dpkg-buildflags --get CFLAGS`
++CPPFLAGS += `dpkg-buildflags --get CPPFLAGS`
++CXXFLAGS += `dpkg-buildflags --get CXXFLAGS`
++LFLAGS += `dpkg-buildflags --get LDFLAGS`
+Index: waili-19990723/lib/Util.C
+===================================================================
+--- waili-19990723.orig/lib/Util.C	2014-01-13 15:26:39.000000000 +0100
++++ waili-19990723/lib/Util.C	2014-01-13 15:27:00.000000000 +0100
+@@ -41,9 +41,9 @@
+     va_list args;
+   
+     va_start(args, fmt);
+-    vsnprintf(ERRSTR+strlen(ERRSTR), 512, fmt, args);
++    if(strlen(ERRSTR)<511) vsnprintf(ERRSTR+strlen(ERRSTR), 512-strlen(ERRSTR), fmt, args);
+     va_end(args);
+-    fprintf(stderr,ERRSTR);
++    fputs(ERRSTR,stderr);
+     //exception e;//=new exception();
+     //e->what=ERRSTR;
+     char *e=ERRSTR;

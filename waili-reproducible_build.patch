@@ -1,0 +1,11 @@
+--- waili-19990723.orig/config/Rules.Linux.g++
++++ waili-19990723/config/Rules.Linux.g++
+@@ -37,7 +37,7 @@ OPTFLAGS =	-O3 -fomit-frame-pointer
+ 
+ #changed for Debian: much cleaner; and you can move the directory around
+ CFLAGS =	-Wall $(TIFFINC) $(TIFFDEF) $(OPTFLAGS) $(DEBUGFLAGS)
+-CPPFLAGS =       -I$(TOPDIR)/include $(TIFFINC) $(TIFFDEF) 
++CPPFLAGS =       -I../include $(TIFFINC) $(TIFFDEF)
+ 
+ 
+ #changed for debian: if -lwaili is specified, libtool fails to work

@@ -1,0 +1,58 @@
+--- waili-19990723.orig/man/Wavelet.tex
++++ waili-19990723/man/Wavelet.tex
+@@ -1,5 +1,5 @@
+ %
+-%	Wavelet Classes
++%       Wavelet Classes
+ %
+ %   $Id: Wavelet.tex,v 4.6.2.4.2.1 1999/07/20 16:16:17 geert Exp $
+ % 
+@@ -67,7 +67,7 @@
+     pass respectively high pass subband have to be shifted to the left to
+     obtain their real values.
+ 
+-\function{u8 GetID(void)\ const}
++\function{Wavelet\_ID GetID(void)\ const}
+     Get the unique private ID for this type of wavelet.
+ 
+ % -----------------------------------------------------------------------------
+@@ -103,7 +103,7 @@
+ 
+     $(0, 0)$ is used for the lazy wavelet filter.
+ 
+-\function{Wavelet$\ast$ CreateFromID(u8 id)}
++\function{Wavelet$\ast$ CreateFromID(Wavelet\_ID id)}
+     Create a \name{Wavelet} object that corresponds to the unique private ID
+     \name{id}.
+ 
+@@ -113,7 +113,7 @@
+ 
+ \subtitle{Name}
+     Wavelet\_Lazy --- \name{Lazy} integer wavelet transform using the
+-    		      \name{Lifting Scheme}
++                      \name{Lifting Scheme}
+ 
+ % -----------------------------------------------------------------------------
+ 
+@@ -128,7 +128,7 @@
+ 
+ \subtitle{Name}
+     Wavelet\_CDF\_x\_y --- \name{Cohen-Daubechies-Feauveau} (x, y) integer
+-			   wavelet transforms using the \name{Lifting Scheme}
++                           wavelet transforms using the \name{Lifting Scheme}
+ 
+ % -----------------------------------------------------------------------------
+ 
+@@ -157,9 +157,9 @@
+ 
+ \subtitle{Name}
+     Wavelet\_CRF\_13\_7, Wavelet\_SWE\_13\_7  --- Integer wavelet transforms
+-						  using the \name{Lifting
+-						  Scheme} for some more
+-						  wavelets used by JPEG2000.
++                                                  using the \name{Lifting
++                                                  Scheme} for some more
++                                                  wavelets used by JPEG2000.
+ 
+ % -----------------------------------------------------------------------------
+ 
