@@ -1,0 +1,31 @@
+--- waili-gpl-19990723/lib/Makefile.orig	2024-02-04 16:58:40.211665174 +0100
++++ waili-gpl-19990723/lib/Makefile	2024-02-04 17:56:42.562159540 +0100
+@@ -38,7 +38,7 @@ All: $(LIB)  $(LIB:.la=.a)
+ 
+ $(LIB)  :	$(LIBOBJS:.o=.d) $(LIBOBJS:.o=.lo) $(LIBOBJS)
+ 	$(LIBTOOL) --mode=link --tag=CXX $(CXX) $(CFLAGS)  $(TIFFLIB) -o $(LIB) \
+-		-rpath /usr/lib \
++		-rpath $(LIBDIR) \
+ 		-version-info "$(LIBVERSION)" \
+ 		$(LIBOBJS:.o=.lo)
+ 
+@@ -73,7 +73,7 @@ include ../Rules.make
+ # added for Debian GNU/Linux.
+ 
+ install:   $(LIB)
+-	$(INSTALL) -d $(DESTDIR)$(PREFIX)/lib
+-	$(LIBTOOLINSTALL)  $(INSTALL) $(LIB) $(DESTDIR)$(PREFIX)/lib
++	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
++	$(LIBTOOLINSTALL)  $(INSTALL) $(LIB) $(DESTDIR)$(LIBDIR)
+ 
+ 
+--- waili-gpl-19990723/config/Configure.orig	2024-02-04 18:35:58.349341534 +0100
++++ waili-gpl-19990723/config/Configure	2024-02-04 20:18:11.245183685 +0100
+@@ -68,6 +68,7 @@ EOF
+ echo '#new Debian configuration' >> ../Rules.config
+ #prefix for installation
+ echo 'PREFIX=/usr' >> ../Rules.config
++echo 'LIBDIR=$(PREFIX)/lib' >> ../Rules.config
+ echo 'PACKAGE=libwaili' >> ../Rules.config
+ #libtool support, if available
+ if which libtool >/dev/null ; then

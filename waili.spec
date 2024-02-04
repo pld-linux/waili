@@ -19,6 +19,7 @@ Patch6:		%{name}-reproducible_build.patch
 # PLD
 Patch10:	%{name}-libtool_tag_cxx.patch
 Patch11:	%{name}-optflags.patch
+Patch12:	%{name}-libdir.patch
 URL:		https://nalag.cs.kuleuven.be/research/software/wavelets/
 BuildRequires:	libjpeg-devel
 BuildRequires:	libstdc++-devel
@@ -76,15 +77,19 @@ Statyczna biblioteka WAILI.
 %patch5 -p1
 %patch6 -p1
 %patch10 -p1
+%patch11 -p1
+%patch12 -p1
 
 %build
 %{__make} -C config \
 	CXX="%{__cxx}" \
+	LIBDIR=%{_libdir} \
 	OPTCPPFLAGS="%{rpmcppflags}" \
 	OPTCXXFLAGS="%{rpmcxxflags}" \
 	OPTLDFLAGS="%{rpmldflags}"
 %{__make} \
 	CXX="%{__cxx}" \
+	LIBDIR=%{_libdir} \
 	OPTCPPFLAGS="%{rpmcppflags}" \
 	OPTCXXFLAGS="%{rpmcxxflags}" \
 	OPTLDFLAGS="%{rpmldflags}"
@@ -93,7 +98,8 @@ Statyczna biblioteka WAILI.
 rm -rf $RPM_BUILD_ROOT
 
 %{__make} install \
-	DESTDIR=$RPM_BUILD_ROOT
+	DESTDIR=$RPM_BUILD_ROOT \
+	LIBDIR=%{_libdir}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
